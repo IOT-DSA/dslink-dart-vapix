@@ -1,0 +1,8 @@
+name: dslink_vapix
+description: Axis DSLink
+environment:
+    sdk: ">=1.13.0 <2.0.0"
+dependencies:
+    dslink:
+        git: https://github.com/IOT-DSA/sdk-dslink-dart.git
+
