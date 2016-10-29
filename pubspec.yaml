@@ -5,4 +5,4 @@ environment:
 dependencies:
     dslink:
         git: https://github.com/IOT-DSA/sdk-dslink-dart.git
-
+    http: "^0.11.3"
