@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:dslink/utils.dart' show logger;
+import 'package:xml/xml.dart' as xml;
 
 import 'soap_message.dart' as soap;
 import 'models/axis_device.dart';
@@ -59,26 +59,77 @@ class VClient {
     return AuthError.ok;
   }
 
-  Future<AuthError> update(Uri uri, String user, String pass) async {
+  Future<AuthError> updateClient(Uri uri, String user, String pass) async {
     var cl = new VClient._(uri, user, pass);
     var res = await cl.authenticate();
     if (res == AuthError.ok) {
-      _client.close();
-      _cache.remove('$_user@$_origUri');
+      close();
       _cache['$user@$uri'] = cl;
     }
     return res;
   }
 
   void close() {
-
+    _client.close();
+    _cache.remove('$_user@$_origUri');
   }
 
-  Future<String> getEventInstances() =>
-      _soapRequest(soap.getEventInstances,
-          r'http://www.axis.com/vapix/ws/event1/GetEventInstances');
+  Future<String> addMotion(Map params) async {
+    final Map<String, String> map = {
+      'action': 'add',
+      'template': 'motion',
+      'group': 'Motion'
+    };
 
-  Future<String> _soapRequest(String msg, String header) async {
+    params.forEach((key, val) {
+      key = 'Motion.M.$key';
+      map[key] = '$val';
+    });
+
+    var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
+    http.Response resp;
+    try {
+      resp = await _client.get(uri);
+    } catch (e) {
+      logger.warning('Error adding motion', e);
+    }
+
+    if (resp.statusCode != HttpStatus.OK) return null;
+    return resp.body.split(' ')[0];
+  }
+
+  Future<bool> removeMotion(String group) async {
+    final Map<String, String> map = {
+      'action': 'remove',
+      'group': 'Motion.$group'
+    };
+
+    var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
+    http.Response resp;
+    try {
+      resp = await _client.get(uri);
+    } catch (e) {
+      logger.warning('Error removing motion window', e);
+    }
+
+    var res = resp.body.trim().toLowerCase() == 'ok';
+    if (!res) {
+      logger.warning('Failed to remove motion window: ${resp.body}');
+    }
+
+    return res;
+  }
+
+  Future<String> getEventInstances() async {
+    var doc = await _soapRequest(soap.getEventInstances,
+        r'http://www.axis.com/vapix/ws/event1/GetEventInstances');
+
+    var el = doc.findAllElements('tnsaxis:MotionDetection').first;
+    print(el);
+    return '';
+  }
+
+  Future<xml.XmlDocument> _soapRequest(String msg, String header) async {
     final url = _rootUri.replace(path: 'vapix/services');
     final headers = <String, String>{
       'Content-Type': 'text/xml; charset=utf-8',
@@ -98,7 +149,9 @@ class VClient {
       logger.warning('Sending SOAP request failed', e);
     }
 
-    return respBody;
+    var doc = xml.parse(respBody);
+
+    return doc;
   }
 
   void _logErr(http.Response resp, String action) {

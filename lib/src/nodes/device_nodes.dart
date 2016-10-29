@@ -5,6 +5,8 @@ import 'package:dslink/nodes.dart' show NodeNamer;
 import 'package:dslink/utils.dart' show logger;
 
 import 'common.dart';
+import 'param_value.dart';
+import 'window_commands.dart';
 import '../client.dart';
 import '../models/axis_device.dart';
 
@@ -90,6 +92,7 @@ class AddDevice extends SimpleNode {
         ret..[_success] = true
           ..[_message] = 'Success!';
         nd = provider.addNode('/$name', DeviceNode.definition(uri, u, p));
+        //_link.save();
         break;
       case AuthError.notFound:
         ret[_message] = 'Unable to locate device parameters page. '
@@ -133,6 +136,7 @@ class DeviceNode extends SimpleNode implements Device {
   static const String _pass = r'$$password';
   static const String _uri = r'$$ax_uri';
   static const String _params = 'params';
+  static const String _motion = 'Motion';
 
   void setDevice(AxisDevice dev) {
     if (_comp.isCompleted) return;
@@ -145,12 +149,19 @@ class DeviceNode extends SimpleNode implements Device {
     return _comp.future;
   }
 
+  Future<VClient> get client async {
+    if (_cl != null) return _cl;
+    return _clComp.future;
+  }
+
   Completer<AxisDevice> _comp;
+  Completer<VClient> _clComp;
   AxisDevice _device;
   VClient _cl;
 
   DeviceNode(String path) : super(path) {
     _comp = new Completer<AxisDevice>();
+    _clComp = new Completer<VClient>();
   }
 
   @override
@@ -168,6 +179,7 @@ class DeviceNode extends SimpleNode implements Device {
     }
 
     _cl = new VClient(uri, u, p);
+    _clComp.complete(_cl);
 
     _cl.authenticate().then((AuthError ae) {
       if (ae != AuthError.ok) return null;
@@ -176,7 +188,6 @@ class DeviceNode extends SimpleNode implements Device {
       setDevice(dev);
       return dev;
     }).then((AxisDevice dev) {
-
       void genNodes(Map<String, dynamic> map, String path) {
         for (String key in map.keys) {
           var el = map[key];
@@ -197,6 +208,16 @@ class DeviceNode extends SimpleNode implements Device {
 
       var p = provider.getNode('$path/$_params');
       genNodes(dev.params.map, p.path);
+      var mNode = provider.getNode('$path/$_params/$_motion');
+      if (mNode == null) return;
+
+      // TODO: Add "Remove" command to motion groups.
+      for (var p in mNode.children.keys) {
+        provider.addNode('${mNode.path}/$p/${RemoveWindow.pathName}',
+            RemoveWindow.definition());
+      }
+      provider.addNode('${mNode.path}/${AddWindow.pathName}',
+          AddWindow.definition());
     });
   }
 
@@ -204,13 +225,15 @@ class DeviceNode extends SimpleNode implements Device {
     if (pass == null || pass.isEmpty) {
       pass = getConfig(_pass);
     }
-    var res = await _cl.update(uri, user, pass);
+    var res = await _cl.updateClient(uri, user, pass);
     if (res == AuthError.ok) {
       _cl = new VClient(uri, user, pass);
       configs[_uri] = uri.toString();
       configs[_user] = user;
       configs[_pass] = pass;
     }
+
+    return res;
   }
 }
 
@@ -334,6 +357,7 @@ class RemoveDevice extends SimpleNode {
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = { _success: true, _message: 'Success!' };
 
+    (parent as DeviceNode)._cl?.close();
     parent.remove();
     _link.save();
 
@@ -341,17 +365,3 @@ class RemoveDevice extends SimpleNode {
   }
 }
 
-class ParamValue extends SimpleNode {
-  static const String isType = 'paramValue';
-
-  static Map<String, dynamic> definition(String val) => {
-    r'$is': isType,
-    r'$type' : 'string',
-    r'?value' : val,
-    //r'$writable' : 'write'
-  };
-
-  ParamValue(String path) : super(path) {
-    serializable = false;
-  }
-}

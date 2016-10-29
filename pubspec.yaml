@@ -6,3 +6,4 @@ dependencies:
     dslink:
         git: https://github.com/IOT-DSA/sdk-dslink-dart.git
     http: "^0.11.3"
+    xml:  "^2.4.3"

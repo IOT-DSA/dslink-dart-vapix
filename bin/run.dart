@@ -10,6 +10,8 @@ main(List<String> args) async {
     DeviceNode.isType: (String path) => new DeviceNode(path),
     ParamValue.isType: (String path) => new ParamValue(path),
     RemoveDevice.isType: (String path) => new RemoveDevice(path, link),
+    AddWindow.isType: (String path) => new AddWindow(path),
+    RemoveWindow.isType: (String path) => new RemoveWindow(path)
   }, defaultNodes: {
     AddDevice.pathName: AddDevice.definition()
   });
