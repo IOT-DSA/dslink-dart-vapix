@@ -211,7 +211,6 @@ class DeviceNode extends SimpleNode implements Device {
       var mNode = provider.getNode('$path/$_params/$_motion');
       if (mNode == null) return;
 
-      // TODO: Add "Remove" command to motion groups.
       for (var p in mNode.children.keys) {
         provider.addNode('${mNode.path}/$p/${RemoveWindow.pathName}',
             RemoveWindow.definition());
