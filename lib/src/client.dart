@@ -120,6 +120,28 @@ class VClient {
     return res;
   }
 
+  Future<bool> updateParameter(String path, String value) async {
+    final Map<String, String> params = {
+      'action': 'update',
+      path: value
+    };
+
+    var uri = _rootUri.replace(path: _paramPath, queryParameters: params);
+    http.Response resp;
+    try {
+      resp = await _client.get(uri);
+    } catch (e) {
+      logger.warning('Error modifying parameter: $path', e);
+    }
+
+    var res = resp.body.trim().toLowerCase() == 'ok';
+    if (!res) {
+      logger.warning('Failed to modify parameter: ${resp.body}');
+    }
+
+    return res;
+  }
+
   Future<String> getEventInstances() async {
     var doc = await _soapRequest(soap.getEventInstances,
         r'http://www.axis.com/vapix/ws/event1/GetEventInstances');
