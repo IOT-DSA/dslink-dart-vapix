@@ -20,21 +20,48 @@ Future<Null> main() async {
 
   var res = await cl.authenticate();
   print(res);
-  //var body = await cl.getEventInstances();
-  //print(body);
-  var added = await cl.addMotion({
-    _name: 'Remote Test',
-    _top: 0,
-    _left: 0,
-    _bot: 500,
-    _right: 500,
-    _hist: 90,
-    _objSize: 40,
-    _sense: 55,
-    _imgSrc: 0,
-    _winType: 'include'
-  });
-  print('Added: $added');
+//  var body = await cl.getEventInstances();
+//  for (var el in body.sources) {
+//    print(el.type);
+//    print(el.name);
+//    print(el.channel);
+//    print(el.value);
+//  }
+//  var added = await cl.addMotion({
+//    _name: 'Remote Test',
+//    _top: 0,
+//    _left: 0,
+//    _bot: 500,
+//    _right: 500,
+//    _hist: 90,
+//    _objSize: 40,
+//    _sense: 55,
+//    _imgSrc: 0,
+//    _winType: 'include'
+//  });
+//  print('Added: $added');
+
+//  var body = await cl.getActionRules();
+//  for (var rule in body) {
+//    print('Rule: ${rule.name} (${rule.id})');
+//    print('Enabled: ${rule.enabled}');
+//    print('PrimaryAction: ${rule.primaryAction}');
+//    print('Conditions:');
+//    for(var c in rule.conditions) {
+//      print('\tTopic: ${c.topic}');
+//      print('\tMsg: ${c.message}');
+//    }
+//  }
+
+  var body = await cl.getActionConfigs();
+  for (var config in body) {
+    print('Config: ${config.name} (${config.id})');
+    print('Template: ${config.template}');
+    print('Params:');
+    for (var p in config.params) {
+      print('\t${p.name}: ${p.value}');
+    }
+  }
 }
 
 //

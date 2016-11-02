@@ -7,6 +7,7 @@ import 'package:xml/xml.dart' as xml;
 
 import 'soap_message.dart' as soap;
 import 'models/axis_device.dart';
+import 'models/events_alerts.dart';
 
 enum AuthError { ok, auth, notFound, server, other }
 
@@ -142,13 +143,65 @@ class VClient {
     return res;
   }
 
-  Future<String> getEventInstances() async {
+  Future<MotionEvents> getEventInstances() async {
     var doc = await _soapRequest(soap.getEventInstances,
         r'http://www.axis.com/vapix/ws/event1/GetEventInstances');
 
-    var el = doc.findAllElements('tnsaxis:MotionDetection').first;
-    print(el);
-    return '';
+    var el = doc.findAllElements('tnsaxis:MotionDetection')?.first;
+    var me = new MotionEvents(el);
+    return me;
+  }
+
+  Future<List<ActionConfig>> getActionConfigs() async {
+    var doc = await _soapRequest(soap.getActionConfigs,
+        r'http://www.axis.com/vapix/ws/action1/GetActionConfigurations');
+
+    var configs = doc.findAllElements('aa:ActionConfiguration');
+    var res = new List<ActionConfig>();
+    if (configs == null || configs.isEmpty) return res;
+
+    for (var c in configs) {
+      var id = c.findElements('aa:ConfigurationID')?.first?.text;
+      var nm = c.findElements('aa:Name')?.first?.text;
+      var tt = c.findElements('aa:TemplateToken')?.first?.text;
+      var config = new ActionConfig(nm, id, tt);
+      var params = c.findAllElements('aa:Parameter');
+      for (var p in params) {
+        var val = p.getAttribute('Value');
+        var name = p.getAttribute('Name');
+        config.params.add(new ConfigParams(name, val));
+      }
+      res.add(config);
+    }
+    return res;
+  }
+
+  Future<List<ActionRule>> getActionRules() async {
+    var doc = await _soapRequest(soap.getActionRules,
+        r'http://www.axis.com/vapix/ws/action1/GetActionRules');
+
+    var rules = doc.findAllElements('aa:ActionRule');
+    var res = new List<ActionRule>();
+    if (rules == null || rules.isEmpty) return res;
+
+    for (var r in rules) {
+      var id = r.findElements('aa:RuleID')?.first?.text;
+      var nm = r.findElements('aa:Name')?.first?.text;
+      var en = r.findElements('aa:Enabled')?.first?.text == 'true';
+      var pa = r.findElements('aa:PrimaryAction')?.first?.text;
+      var rule = new ActionRule(id, nm, en, pa);
+      var conds = r.findAllElements('aa:Condition');
+      if (conds != null && conds.isNotEmpty) {
+        for(var c in conds) {
+          var top = c.findElements('wsnt:TopicExpression')?.first?.text;
+          var msg = c.findElements('wsnt:MessageContent')?.first?.text;
+          rule.conditions.add(new Condition(top, msg));
+        }
+      }
+
+      res.add(rule);
+    }
+    return res;
   }
 
   Future<xml.XmlDocument> _soapRequest(String msg, String header) async {
