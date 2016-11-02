@@ -46,8 +46,8 @@ class ActionRule {
   String id;
   String name;
   bool enabled;
-  List<Condition> conditions;
   String primaryAction; // Maps to ActionConfig
+  List<Condition> conditions;
   ActionRule(this.id, this.name, this.enabled, this.primaryAction) {
     conditions = new List<Condition>();
   }

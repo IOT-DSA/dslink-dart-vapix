@@ -5,6 +5,7 @@ import 'package:dslink/nodes.dart' show NodeNamer;
 import 'package:dslink/utils.dart' show logger;
 
 import 'common.dart';
+import 'events_node.dart';
 import 'param_value.dart';
 import 'window_commands.dart';
 import '../client.dart';
@@ -128,6 +129,7 @@ class DeviceNode extends SimpleNode implements Device {
     _user: user,
     _pass: pass,
     _params: {},
+    EventsNode.pathName: EventsNode.definition(),
     EditDevice.pathName: EditDevice.definition(uri, user),
     RemoveDevice.pathName: RemoveDevice.definition()
   };
