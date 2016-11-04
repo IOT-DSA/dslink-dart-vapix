@@ -144,8 +144,7 @@ class VClient {
   }
 
   Future<MotionEvents> getEventInstances() async {
-    var doc = await _soapRequest(soap.getEventInstances,
-        r'http://www.axis.com/vapix/ws/event1/GetEventInstances');
+    var doc = await _soapRequest(soap.getEventInstances(), soap.headerGEI);
 
     var el = doc.findAllElements('tnsaxis:MotionDetection')?.first;
     var me = new MotionEvents(el);
@@ -153,8 +152,7 @@ class VClient {
   }
 
   Future<List<ActionConfig>> getActionConfigs() async {
-    var doc = await _soapRequest(soap.getActionConfigs,
-        r'http://www.axis.com/vapix/ws/action1/GetActionConfigurations');
+    var doc = await _soapRequest(soap.getActionConfigs(), soap.headerGAC);
 
     var configs = doc.findAllElements('aa:ActionConfiguration');
     var res = new List<ActionConfig>();
@@ -177,8 +175,7 @@ class VClient {
   }
 
   Future<List<ActionRule>> getActionRules() async {
-    var doc = await _soapRequest(soap.getActionRules,
-        r'http://www.axis.com/vapix/ws/action1/GetActionRules');
+    var doc = await _soapRequest(soap.getActionRules(), soap.headerGAR);
 
     var rules = doc.findAllElements('aa:ActionRule');
     var res = new List<ActionRule>();
