@@ -174,6 +174,12 @@ class VClient {
     return res;
   }
 
+  Future<String> addActionConfig(ActionConfig ac) async {
+    var doc = await _soapRequest(soap.addActionConfig(ac), soap.headerAAC);
+
+
+  }
+
   Future<List<ActionRule>> getActionRules() async {
     var doc = await _soapRequest(soap.getActionRules(), soap.headerGAR);
 
@@ -221,7 +227,13 @@ class VClient {
       logger.warning('Sending SOAP request failed', e);
     }
 
-    var doc = xml.parse(respBody);
+    xml.XmlDocument doc;
+    try {
+      doc = xml.parse(respBody);
+    } catch (e) {
+      logger.warning('Failed to parse results: $respBody', e);
+      return null;
+    }
 
     return doc;
   }
