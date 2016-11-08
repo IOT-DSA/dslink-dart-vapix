@@ -177,7 +177,19 @@ class VClient {
   Future<String> addActionConfig(ActionConfig ac) async {
     var doc = await _soapRequest(soap.addActionConfig(ac), soap.headerAAC);
 
+    if (doc == null) return null;
+    var el = doc.findAllElements('aa:ConfigurationID')?.first;
+    if (el == null) return null;
+    return el.text;
+  }
 
+  Future<bool> removeActionConfig(String id) async {
+    var doc = await _soapRequest(soap.removeActionConfigs(id), soap.headerRAC);
+
+    if (doc == null) return false;
+    var el = doc.findAllElements('aa:RemoveActionConfigurationResponse')?.first;
+    if (el == null) return null;
+    return el.text == '' || el.text == null;
   }
 
   Future<List<ActionRule>> getActionRules() async {
@@ -205,6 +217,25 @@ class VClient {
       res.add(rule);
     }
     return res;
+  }
+
+  Future<String> addActionRule(ActionRule ar) async {
+    var doc = await _soapRequest(soap.addActionRule(ar), soap.headerAAR);
+
+    if (doc == null) return null;
+    var el = doc.findAllElements('aa:RuleID')?.first;
+    if (el == null) return null;
+
+    return el.text;
+  }
+
+  Future<bool> removeActionRule(String id) async {
+    var doc = await _soapRequest(soap.removeActionRule(id), soap.headerRAR);
+
+    if (doc == null) return false;
+    var el = doc.findAllElements('aa:RemoveActionRuleResponse')?.first;
+    if (el == null) return null;
+    return el.text == '' || el.text == null;
   }
 
   Future<xml.XmlDocument> _soapRequest(String msg, String header) async {
