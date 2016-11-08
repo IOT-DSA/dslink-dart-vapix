@@ -23,7 +23,14 @@ const String headerGEI =
     r'http://www.axis.com/vapix/ws/event1/GetEventInstances';
 
 const String _event1 = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
+const String _eventNoNS = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
 const String _action1 = r'xmlns:aa="http://www.axis.com/vapix/ws/action1"';
+const String _actionNoNS = r'xmlns="http://www.axis.com/vapix/ws/action1"';
+
+String motion() => r'tns1:VideoAnalytics/tnsaxis:MotionDetection';
+String condition(String windowId) => 'boolean(//SimpleItem[@Name="window" and '
+    '@Value="0"]) and boolean(//SimpleItem[@Name="motion" and '
+    '@Value="$windowId"])';
 
 
 String header(String template, String request) =>
@@ -37,21 +44,21 @@ String header(String template, String request) =>
 
 /// Generate SOAP Envelope to Get Event Instances
 String getEventInstances() => header(_event1,
-    '<aev:GetEventInstances xmlns="$_event1"></aev:GetEventInstances>');
+    '<aev:GetEventInstances $_event1></aev:GetEventInstances>');
 
 /// Generate SOAP Envelop to Get Action Configurations
 String getActionConfigs() => header(_action1,
-    '<aa:GetActionConfigurations xmlns="$_action1"></aa:GetActionConfigurations>');
+    '<aa:GetActionConfigurations $_action1></aa:GetActionConfigurations>');
 
 /// Generate SOAP Envelop to Remove Action Configurations
 String removeActionConfigs(String id) => header(_action1,
-    '''<aa:RemoveActionConfiguration xmlns="$_action1">
+    '''<aa:RemoveActionConfiguration $_actionNoNS>
       <ConfigurationID>$id</ConfigurationID>
     </aa:RemoveActionConfiguration>''');
 
 /// Generate SOAP Evelop to Add Action Configuration
 String addActionConfig(ActionConfig ac) {
-  var body = '''<aa:AddActionConfiguration xmlns="$_action1">
+  var body = '''<aa:AddActionConfiguration $_actionNoNS>
     <NewActionConfiguration>
       <TemplateToken>${ac.template}</TemplateToken>
       <Name>${ac.name}</Name>
@@ -71,30 +78,41 @@ String addActionConfig(ActionConfig ac) {
 
 /// Generate SOAP Envelop to Get Action Rule
 String getActionRules() => header(_action1,
-    '<aa:GetActionRules xmlns="$_action1"></aa:GetActionRules>');
+    '<aa:GetActionRules $_action1></aa:GetActionRules>');
 
 /// Generate SOAP Envelop to Remove Action Rules
 String removeActionRule(String id) => header(_action1,
-    '''<aa:RemoveActionRule xmlns="$_action1">
-      <RuleId>$id</RuleId>
+    '''<aa:RemoveActionRule $_actionNoNS>
+      <RuleID>$id</RuleID>
     </aa:RemoveActionRule>''');
 
 /// Generate SOAP Envelop to Add Action Rule
-String addActionRule(ActionRule ar) {
-  String body = '''<aa:AddActionRule xmlns="$_action1">
+String addActionRule(ActionRule ar, ActionConfig ac) {
+  bool isCont = ac.template == ActionConfig.continuous;
+  String body = '''<aa:AddActionRule $_actionNoNS>
       <NewActionRule>
         <Name>${ar.name}</Name>
         <Enabled>${ar.enabled}</Enabled>
-        <StartEvent>
   ''';
-  for (var c in ar.conditions) {
-    body += '<wsnt:TopicExpression Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">${c.topic}</wsnt:TopicExpression>\n';
-    body += '<wsnt:MessageContent Dialect="http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter">${c.message}</wsnt:MessageContent>\n';
+  if (isCont) {
+    body += '<Conditions>\n';
+  } else {
+    body += '<StartEvent>\n';
   }
-  body += '''</StartEvent>
-      <PrimaryAction>${ar.primaryAction}</PrimaryAction>
-    </NewActionRule>
-  </aa:AddActionRule>''';
+  for (var c in ar.conditions) {
+    if (isCont) body += '<Condition>\n';
+    body += '        <wsnt:TopicExpression Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">${c.topic}</wsnt:TopicExpression>\n';
+    body += '          <wsnt:MessageContent Dialect="http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter">${c.message}</wsnt:MessageContent>\n';
+    if (isCont) body += '</Condition>\n';
+  }
+  if (isCont) {
+    body += '</Conditions>\n';
+  } else {
+    body += '</StartEvent>';
+  }
+  body += '''        <PrimaryAction>${ar.primaryAction}</PrimaryAction>
+      </NewActionRule>
+    </aa:AddActionRule>''';
 
   return header(_action1, body);
 }

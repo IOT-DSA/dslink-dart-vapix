@@ -219,8 +219,8 @@ class VClient {
     return res;
   }
 
-  Future<String> addActionRule(ActionRule ar) async {
-    var doc = await _soapRequest(soap.addActionRule(ar), soap.headerAAR);
+  Future<String> addActionRule(ActionRule ar, ActionConfig ac) async {
+    var doc = await _soapRequest(soap.addActionRule(ar, ac), soap.headerAAR);
 
     if (doc == null) return null;
     var el = doc.findAllElements('aa:RuleID')?.first;

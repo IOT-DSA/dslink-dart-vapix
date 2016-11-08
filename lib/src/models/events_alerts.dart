@@ -47,6 +47,7 @@ class ActionRule {
   String name;
   bool enabled;
   String primaryAction; // Maps to ActionConfig
+  String windowId;
   List<Condition> conditions;
   ActionRule(this.id, this.name, this.enabled, this.primaryAction) {
     conditions = new List<Condition>();
@@ -60,6 +61,8 @@ class Condition {
 }
 
 class ActionConfig {
+  static const String continuous = 'com.axis.action.unlimited.notification.tcp';
+  static const String fixed = 'com.axis.action.fixed.notification.tcp';
   String id;
   String name;
   String template;
