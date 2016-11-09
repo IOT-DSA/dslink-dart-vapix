@@ -27,11 +27,13 @@ const String _eventNoNS = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
 const String _action1 = r'xmlns:aa="http://www.axis.com/vapix/ws/action1"';
 const String _actionNoNS = r'xmlns="http://www.axis.com/vapix/ws/action1"';
 
+/// Used for ActionRules for conditions, specifies motion detection
 String motion() => r'tns1:VideoAnalytics/tnsaxis:MotionDetection';
+/// Used for ActionRules for conditions, specifies which Window detects the
+/// motion.
 String condition(String windowId) => 'boolean(//SimpleItem[@Name="window" and '
-    '@Value="0"]) and boolean(//SimpleItem[@Name="motion" and '
-    '@Value="$windowId"])';
-
+    '@Value="$windowId"]) and boolean(//SimpleItem[@Name="motion" and '
+    '@Value="1"])';
 
 String header(String template, String request) =>
     '''<?xml version="1.0" encoding="utf-8"?>
@@ -44,11 +46,11 @@ String header(String template, String request) =>
 
 /// Generate SOAP Envelope to Get Event Instances
 String getEventInstances() => header(_event1,
-    '<aev:GetEventInstances $_event1></aev:GetEventInstances>');
+    '<aev:GetEventInstances $_eventNoNS></aev:GetEventInstances>');
 
 /// Generate SOAP Envelop to Get Action Configurations
 String getActionConfigs() => header(_action1,
-    '<aa:GetActionConfigurations $_action1></aa:GetActionConfigurations>');
+    '<aa:GetActionConfigurations $_actionNoNS></aa:GetActionConfigurations>');
 
 /// Generate SOAP Envelop to Remove Action Configurations
 String removeActionConfigs(String id) => header(_action1,
@@ -78,7 +80,7 @@ String addActionConfig(ActionConfig ac) {
 
 /// Generate SOAP Envelop to Get Action Rule
 String getActionRules() => header(_action1,
-    '<aa:GetActionRules $_action1></aa:GetActionRules>');
+    '<aa:GetActionRules $_actionNoNS></aa:GetActionRules>');
 
 /// Generate SOAP Envelop to Remove Action Rules
 String removeActionRule(String id) => header(_action1,

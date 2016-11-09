@@ -24,10 +24,10 @@ Future<Null> main() async {
   print(res);
   var body = await cl.getEventInstances();
   for (var el in body.sources) {
-    print(el.type);
-    print(el.name);
-    print(el.channel);
-    print(el.value);
+    print('Type: ${el.type}');
+    print('Name: ${el.name}');
+    print('Channel: ${el.channel}');
+    print('Value? (Id?) ${el.value}\n');
   }
 //  var added = await cl.addMotion({
 //    _name: 'Remote Test',
@@ -53,7 +53,7 @@ Future<Null> main() async {
       print('\tTopic: ${c.topic}');
       print('\tMsg: ${c.message}');
     }
-    print('\n\n');
+    print('\n');
   }
 
   body = await cl.getActionConfigs();
@@ -64,29 +64,29 @@ Future<Null> main() async {
     for (var p in config.params) {
       print('\t${p.name}: ${p.value}');
     }
-    print('\n\n');
+    print('\n');
   }
 
-//  var testConfig = new ActionConfig('Add Remote', '-1', 'com.axis.action.unlimited.notification.tcp');
+//  var tmp = await cl.removeActionConfig('12');
+//  print(tmp);
+////
+//  var testConfig = new ActionConfig('Remote Rule', '-1', ActionConfig.continuous);
 //  testConfig.params..add(new ConfigParams('message', 'Remote Magic'))
 //      ..add(new ConfigParams('host', '10.0.1.234'))
 //      ..add(new ConfigParams('port', '8888'))
 //      ..add(new ConfigParams('qos', '0'))
 //      ..add(new ConfigParams('period', '1'));
 //
-//  print(soap.addActionConfig(testConfig));
-
-//  var body = await cl.addActionConfig(testConfig);
+//  body = await cl.addActionConfig(testConfig);
+//  print(body);
+//  testConfig.id = body;
+//
+//  var testRule = new ActionRule('-1', 'Matt Rules', true, testConfig.id);
+//  testRule.conditions.add(new Condition(soap.motion(), soap.condition('1')));
+//
+//  body = await cl.addActionRule(testRule, testConfig);
 //  print(body);
 
-//  var testRule = new ActionRule('-1', 'Matt Rules', true, '9');
-//  testRule.conditions.add(new Condition('tns1:VideoAnalytics/tnsaxis:MotionDetection',
-//      'boolean(//SimpleItem[@Name="window" and @Value="1"]) and boolean(//SimpleItem[@Name="motion" and @Value="1"])'));
-//
-//  print(soap.addActionRule(testRule));
-//
-//  var body = await cl.addActionRule(testRule);
-//  print(body);
 }
 
 //

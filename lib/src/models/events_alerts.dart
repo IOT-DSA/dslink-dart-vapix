@@ -73,6 +73,11 @@ class ActionConfig {
 }
 
 class ConfigParams {
+  static const String Message = 'message';
+  static const String Host = 'host';
+  static const String Port = 'port';
+  static const String Qos = 'qos';
+  static const String Period = 'period';
   String name;
   String value;
   ConfigParams(this.name, this.value);

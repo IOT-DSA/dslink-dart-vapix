@@ -21,6 +21,14 @@ class VClient {
   String _pass;
   http.Client _client;
 
+  List<ActionConfig> _configs;
+  List<ActionRule> _rules;
+  MotionEvents _motionEvents;
+
+  List<ActionConfig> getConfigs() => _configs;
+  List<ActionRule> getRules() => _rules;
+  MotionEvents getMotion() => _motionEvents;
+
   AxisDevice device;
   bool _authenticated = false;
 
@@ -43,6 +51,9 @@ class VClient {
       var resp = await _client.get(uri);
       if (resp.statusCode != HttpStatus.OK) {
         logger.warning('Request returned status code: ${resp.statusCode}');
+      }
+      if (resp.statusCode == HttpStatus.UNAUTHORIZED) {
+        logger.warning('Unauthorized: UserInfo ${uri.userInfo}');
       }
       body = resp.body;
     } catch (e) {
@@ -148,6 +159,7 @@ class VClient {
 
     var el = doc.findAllElements('tnsaxis:MotionDetection')?.first;
     var me = new MotionEvents(el);
+    _motionEvents = me;
     return me;
   }
 
@@ -171,6 +183,7 @@ class VClient {
       }
       res.add(config);
     }
+    _configs = res;
     return res;
   }
 
@@ -180,6 +193,8 @@ class VClient {
     if (doc == null) return null;
     var el = doc.findAllElements('aa:ConfigurationID')?.first;
     if (el == null) return null;
+    ac.id = el.text;
+    _configs.add(ac);
     return el.text;
   }
 
@@ -189,7 +204,12 @@ class VClient {
     if (doc == null) return false;
     var el = doc.findAllElements('aa:RemoveActionConfigurationResponse')?.first;
     if (el == null) return null;
-    return el.text == '' || el.text == null;
+
+    var ret = (el.text == null || el.text.isEmpty);
+    if (ret) {
+      _configs.removeWhere((ac) => ac.id == id);
+    }
+    return ret;
   }
 
   Future<List<ActionRule>> getActionRules() async {
@@ -216,6 +236,7 @@ class VClient {
 
       res.add(rule);
     }
+    _rules = res;
     return res;
   }
 
@@ -225,7 +246,8 @@ class VClient {
     if (doc == null) return null;
     var el = doc.findAllElements('aa:RuleID')?.first;
     if (el == null) return null;
-
+    ar.id = el.text;
+    _rules.add(ar);
     return el.text;
   }
 
@@ -235,7 +257,12 @@ class VClient {
     if (doc == null) return false;
     var el = doc.findAllElements('aa:RemoveActionRuleResponse')?.first;
     if (el == null) return null;
-    return el.text == '' || el.text == null;
+    var ret = (el.text == null || el.text.isEmpty);
+
+    if (ret) {
+      _rules.removeWhere((ar) => ar.id == id);
+    }
+    return ret;
   }
 
   Future<xml.XmlDocument> _soapRequest(String msg, String header) async {

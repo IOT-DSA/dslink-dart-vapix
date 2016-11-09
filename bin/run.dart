@@ -14,8 +14,13 @@ main(List<String> args) async {
     RemoveWindow.isType: (String path) => new RemoveWindow(path),
     EventsNode.isType: (String path) => new EventsNode(path),
     EventSourceNode.isType: (String path) => new EventSourceNode(path),
+    AddActionRule.isType: (String path) => new AddActionRule(path, link),
     ActionRuleNode.isType: (String path) => new ActionRuleNode(path),
-    ActionConfigNode.isType: (String path) => new ActionConfigNode(path)
+    RemoveActionRule.isType: (String path) => new RemoveActionRule(path, link),
+    AddActionConfig.isType: (String path) => new AddActionConfig(path, link),
+    ActionConfigNode.isType: (String path) => new ActionConfigNode(path),
+    RemoveActionConfig.isType: (String path) =>
+        new RemoveActionConfig(path, link)
   }, defaultNodes: {
     AddDevice.pathName: AddDevice.definition()
   });
