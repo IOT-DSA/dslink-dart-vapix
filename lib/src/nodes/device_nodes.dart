@@ -93,7 +93,7 @@ class AddDevice extends SimpleNode {
         ret..[_success] = true
           ..[_message] = 'Success!';
         nd = provider.addNode('/$name', DeviceNode.definition(uri, u, p));
-        //_link.save();
+        _link.save();
         break;
       case AuthError.notFound:
         ret[_message] = 'Unable to locate device parameters page. '
