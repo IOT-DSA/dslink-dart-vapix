@@ -129,6 +129,11 @@ class DeviceNode extends SimpleNode implements Device {
     _user: user,
     _pass: pass,
     _params: {},
+    'mjpgUrl' : {
+      r'$name' : 'MJPEG URL',
+      r'$type' : 'string',
+      r'?value' : '${uri.toString()}/mjpg/video.mjpg',
+    },
     EventsNode.pathName: EventsNode.definition(),
     EditDevice.pathName: EditDevice.definition(uri, user),
     RemoveDevice.pathName: RemoveDevice.definition()
