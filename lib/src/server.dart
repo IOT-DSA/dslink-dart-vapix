@@ -24,6 +24,7 @@ class Server {
       try {
         await for (var sock in _svr) {
           sock.transform(UTF8.decoder).listen((String str) {
+            str = str.trim();
             logger.finest('Socket received string: $str');
             _notices.add(str);
           }, onError: (err) {
