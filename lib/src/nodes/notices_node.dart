@@ -63,6 +63,7 @@ class NoticeNode extends SimpleNode {
     _server?.close()?.then((_) {
       _server = new Server(_ip, _pt);
       _server.start();
+      _server.notices.listen(receiveNotice);
     });
     _link.save();
   }
