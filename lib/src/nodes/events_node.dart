@@ -190,7 +190,7 @@ class AddActionConfig extends ChildNode {
 
 class AddActionRule extends ChildNode {
   static const String isType = 'addActionRule';
-  static const String pathName = 'Add_Action';
+  static const String pathName = 'Add_Rule';
 
   static const String _name = 'name';
   static const String _enabled = 'enabled';
@@ -201,7 +201,7 @@ class AddActionRule extends ChildNode {
 
   static Map<String, dynamic> definition() => {
     r'$is' : isType,
-    r'$name' : 'Add Action',
+    r'$name' : 'Add Rule',
     r'$invokable' : 'write',
     r'$params' : [
       {'name': _name, 'type': 'string', 'placeholder': 'Rule name'},
@@ -262,6 +262,7 @@ class AddActionRule extends ChildNode {
     if (res == null || res.isEmpty) {
       return ret..[_message] = 'Unable to add Action Rule';
     } else {
+      ret[_success] = true;
       ret[_message] = 'Success!';
     }
 
