@@ -69,7 +69,7 @@ class NoticeNode extends SimpleNode {
   }
 
   void receiveNotice(String str) {
-    var ndName = NodeNamer.createName(str);
+    var ndName = NodeNamer.createName(str.trim());
     var nd = provider.getNode('$path/$ndName') as NotificationNode;
     if (nd == null) {
       nd = provider.addNode('$path/$ndName', NotificationNode.definition())
