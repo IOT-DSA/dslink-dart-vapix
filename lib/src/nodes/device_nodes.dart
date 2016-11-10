@@ -146,8 +146,6 @@ class DeviceNode extends SimpleNode implements Device {
   static const String _params = 'params';
   static const String _motion = 'Motion';
 
-  Server _server;
-
   void setDevice(AxisDevice dev) {
     if (_comp.isCompleted) return;
     _device = dev;
@@ -170,7 +168,6 @@ class DeviceNode extends SimpleNode implements Device {
   VClient _cl;
 
   DeviceNode(String path) : super(path) {
-    _server = new Server();
     _comp = new Completer<AxisDevice>();
     _clComp = new Completer<VClient>();
   }
@@ -180,11 +177,6 @@ class DeviceNode extends SimpleNode implements Device {
     var u = getConfig(_user);
     var p = getConfig(_pass);
     var a = getConfig(_uri);
-
-    _server.start();
-    _server.notices.listen((String str) {
-      print('Received notice');
-    });
 
     Uri uri;
     try {

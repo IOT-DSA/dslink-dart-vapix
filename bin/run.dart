@@ -6,6 +6,8 @@ main(List<String> args) async {
   LinkProvider link;
 
   link = new LinkProvider(args, "Axis-", autoInitialize: false, profiles: {
+    NoticeNode.isType: (String path) => new NoticeNode(path, link),
+    NotificationNode.isType: (String path) => new NotificationNode(path),
     AddDevice.isType: (String path) => new AddDevice(path, link),
     DeviceNode.isType: (String path) => new DeviceNode(path),
     ParamValue.isType: (String path) => new ParamValue(path),
@@ -22,6 +24,7 @@ main(List<String> args) async {
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link)
   }, defaultNodes: {
+    NoticeNode.pathName: NoticeNode.definition(),
     AddDevice.pathName: AddDevice.definition()
   });
 
