@@ -129,7 +129,18 @@ class DeviceNode extends SimpleNode implements Device {
     _uri: uri.toString(),
     _user: user,
     _pass: pass,
+    //* @Node params
+    //* @Parent DeviceNode
+    //*
+    //* Collection of ParamValues on the device. The link will automatically
+    //* create a tree based on the configuration tree of the device.
     _params: {},
+    //* @Node mjpgUrl
+    //* @Parent DeviceNode
+    //*
+    //* MJPEG Url of the remote device.
+    //*
+    //* @Value string
     'mjpgUrl' : {
       r'$name' : 'MJPEG URL',
       r'$type' : 'string',
@@ -216,9 +227,17 @@ class DeviceNode extends SimpleNode implements Device {
 
       var p = provider.getNode('$path/$_params');
       genNodes(dev.params.map, p.path);
+      //* @Node Motion
+      //* @Parent params
+      //*
+      //* Collection of Motion detection related parameters.
       var mNode = provider.getNode('$path/$_params/$_motion');
       if (mNode == null) return;
 
+      //* @Node MotionWindow
+      //* @Parent Motion
+      //*
+      //* Collection of ParamValues that make up the Motion Window.
       for (var p in mNode.children.keys) {
         provider.addNode('${mNode.path}/$p/${RemoveWindow.pathName}',
             RemoveWindow.definition());

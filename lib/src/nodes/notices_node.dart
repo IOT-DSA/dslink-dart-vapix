@@ -3,6 +3,15 @@ import 'package:dslink/nodes.dart' show NodeNamer;
 
 import '../server.dart';
 
+//* @Node Notices
+//* @Is noticeNode
+//* @Parent root
+//*
+//* Notice Node is a collection of notifications received by the TCP server.
+//*
+//* Notice Node manages the internal TCP server configuration. The TCP Server
+//* receives notifications from the Axis Cameras and updates the corresponding
+//* notifications.
 class NoticeNode extends SimpleNode {
   static const String isType = 'noticeNode';
   static const String pathName = 'Notices';
@@ -13,14 +22,30 @@ class NoticeNode extends SimpleNode {
 
   static Map<String, dynamic> definition() => {
     r'$is': isType,
+    //* @Node config
+    //* @Parent Notices
+    //*
+    //* config is a collection of Configuration values for the TCP Server.
     _config: {
       r'$name': 'Server Config',
+      //* @Node bindIp
+      //* @Parent config
+      //*
+      //* bindIp is the IP address that the TCP Server is bound to.
+      //*
+      //* @Value string write
       _bindIp : {
         r'$name': 'Bind IP',
         r'$type': 'string',
         r'?value': '0.0.0.0',
         r'$writable': 'write'
       },
+      //* @Node port
+      //* @Parent config
+      //*
+      //* port is the Port number that the TCP Server is bound to.
+      //*
+      //* @Value number write
       _port: {
         r'$name': 'Port number',
         r'$type': 'number',
@@ -79,6 +104,19 @@ class NoticeNode extends SimpleNode {
   }
 }
 
+
+//* @Node
+//* @MetaType Notification
+//* @Is notificationNode
+//* @Parent Notices
+//*
+//* Notification received by the TCP Server.
+//*
+//* The node name and path will be the string that was received by the
+//* TCP Server. The Value shows the number of times the notification has been
+//* received.
+//*
+//* @Value number write
 class NotificationNode extends SimpleNode {
   static const String isType = 'notificationNode';
   static Map<String, dynamic> definition() => {

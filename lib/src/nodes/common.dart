@@ -11,6 +11,10 @@ abstract class Device {
   void setDevice(AxisDevice dev);
 }
 
+abstract class Events {
+  Future<Null> updateEvents();
+}
+
 abstract class ChildNode extends SimpleNode  {
   ChildNode(String path) : super(path);
 

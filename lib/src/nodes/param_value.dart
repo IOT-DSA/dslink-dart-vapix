@@ -1,5 +1,18 @@
 import 'common.dart';
 
+//* @Node
+//* @MetaType ParamValue
+//* @Parent params
+//*
+//* Parameter of the Device configuration.
+//*
+//* ParamValue is the value of a parameter within the Axis Camera.
+//* Parameters will automatically generate a tree based on the tree provided
+//* by the remote device. The path and name of the ParamValue will be that of
+//* the path in the device's configuration. The value is the value of that
+//* parameter.
+//*
+//* @Value string write
 class ParamValue extends ChildNode {
   static const String isType = 'paramValue';
 
