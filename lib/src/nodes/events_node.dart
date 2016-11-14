@@ -513,7 +513,7 @@ class RemoveActionRule extends ChildNode {
 
   static Map<String, dynamic> definition() => {
     r'$is' : isType,
-    r'$name' : 'Remove Action',
+    r'$name' : 'Remove Rule',
     r'$invokable' : 'write',
     r'$params' : [],
     r'$columns' : [
@@ -627,7 +627,7 @@ class RemoveActionConfig extends ChildNode {
 
   static Map<String, dynamic> definition() => {
     r'$is' : isType,
-    r'$name' : 'Remove Config',
+    r'$name' : 'Remove Action',
     r'$invokable' : 'write',
     r'$params' : [],
     r'$columns' : [
