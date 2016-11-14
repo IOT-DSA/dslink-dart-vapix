@@ -220,3 +220,21 @@ error message. If if succeeds, then it will return true with the message of
 
 **Note:** Any actionId that this rule depends on cannot be removed until the
 Rules which reference it are removed first.
+
+### Receiving Notifications
+
+When an Alarm Action is triggered, it will cause the remote camera to send
+a notification to the TCP Server running with the DSLink. This notification
+will appear in the `Axis` > `Notices` node, as a value. The value name will
+be the text which was provided with the Alarm Action, and the value itself will
+be the number of times that notification has been received. The notifications 
+will not appear under this node until after the first notification has been
+received.
+
+If the Alarm Action is of a continuous nature, then the notification value
+should continue increasing once each second. If it is not a continuous notice,
+then it will increase once each time a new motion is detected.
+
+If you wish to reset the value of a notification, you can right-click on the
+notification and choose `@set`. You can then set the value to whatever number
+you would like (eg: 0).
