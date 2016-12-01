@@ -230,7 +230,7 @@ class DeviceNode extends SimpleNode implements Device {
       //* @Parent params
       //*
       //* Collection of Motion detection related parameters.
-      var mNode = provider.getNode('$path/$_params/$_motion');
+      var mNode = provider.getOrCreateNode('$path/$_params/$_motion');
       if (mNode == null) return;
 
       //* @Node MotionWindow
