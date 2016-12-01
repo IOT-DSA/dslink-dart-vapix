@@ -31,13 +31,22 @@ class VClient {
 
   AxisDevice device;
   bool _authenticated = false;
+  int _authAttempt = 0;
 
   factory VClient(Uri uri, String user, String pass) =>
       _cache['$user@$uri'] ??= new VClient._(uri, user, pass);
 
   VClient._(this._origUri, this._user, this._pass) {
-    _rootUri = _origUri.replace(userInfo: '$_user:$_pass');
-    _client = new http.IOClient();
+    _rootUri = _origUri.replace(userInfo: '');
+    var inner = new HttpClient();
+    var cred = new HttpClientDigestCredentials(_user, _pass);
+    inner.authenticate = (Uri url, String scheme, String realm) async {
+      if (_authAttempt >= 10) return false;
+      inner.addCredentials(url, realm, cred);
+      _authAttempt += 1;
+      return true;
+    };
+    _client = new http.IOClient(inner);
   }
 
   // Try authenticate and load the parameters for the device.
@@ -54,6 +63,8 @@ class VClient {
       }
       if (resp.statusCode == HttpStatus.UNAUTHORIZED) {
         logger.warning('Unauthorized: UserInfo ${uri.userInfo}');
+        close();
+        return AuthError.auth;
       }
       body = resp.body;
     } catch (e) {
@@ -66,6 +77,7 @@ class VClient {
       return AuthError.other;
     }
 
+    _authAttempt = 0;
     device = new AxisDevice(_rootUri, body);
     _authenticated = true;
     return AuthError.ok;
@@ -106,7 +118,10 @@ class VClient {
       logger.warning('Error adding motion', e);
     }
 
-    if (resp.statusCode != HttpStatus.OK) return null;
+    if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
+      _authAttempt = 0;
+    }
+    if (resp.statusCode != HttpStatus.OK) return null;;
     return resp.body.split(' ')[0];
   }
 
@@ -124,6 +139,9 @@ class VClient {
       logger.warning('Error removing motion window', e);
     }
 
+    if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
+      _authAttempt = 0;
+    }
     var res = resp.body.trim().toLowerCase() == 'ok';
     if (!res) {
       logger.warning('Failed to remove motion window: ${resp.body}');
@@ -146,6 +164,9 @@ class VClient {
       logger.warning('Error modifying parameter: $path', e);
     }
 
+    if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
+      _authAttempt = 0;
+    }
     var res = resp.body.trim().toLowerCase() == 'ok';
     if (!res) {
       logger.warning('Failed to modify parameter: ${resp.body}');
@@ -157,6 +178,7 @@ class VClient {
   Future<MotionEvents> getEventInstances() async {
     var doc = await _soapRequest(soap.getEventInstances(), soap.headerGEI);
 
+    if (doc == null) return null;
     var el = doc.findAllElements('tnsaxis:MotionDetection')?.first;
     var me = new MotionEvents(el);
     _motionEvents = me;
@@ -166,6 +188,7 @@ class VClient {
   Future<List<ActionConfig>> getActionConfigs() async {
     var doc = await _soapRequest(soap.getActionConfigs(), soap.headerGAC);
 
+    if (doc == null) return null;
     var configs = doc.findAllElements('aa:ActionConfiguration');
     var res = new List<ActionConfig>();
     if (configs == null || configs.isEmpty) return res;
@@ -203,7 +226,7 @@ class VClient {
 
     if (doc == null) return false;
     var el = doc.findAllElements('aa:RemoveActionConfigurationResponse')?.first;
-    if (el == null) return null;
+    if (el == null) return false;
 
     var ret = (el.text == null || el.text.isEmpty);
     if (ret) {
@@ -215,6 +238,7 @@ class VClient {
   Future<List<ActionRule>> getActionRules() async {
     var doc = await _soapRequest(soap.getActionRules(), soap.headerGAR);
 
+    if (doc == null) return null;
     var rules = doc.findAllElements('aa:ActionRule');
     var res = new List<ActionRule>();
     if (rules == null || rules.isEmpty) return res;
@@ -276,6 +300,9 @@ class VClient {
     try {
       final resp = await _client.post(url, body: msg, headers: headers);
 
+      if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
+        _authAttempt = 0;
+      }
       if (resp.statusCode != HttpStatus.OK) {
         _logErr(resp, header);
       } else {
