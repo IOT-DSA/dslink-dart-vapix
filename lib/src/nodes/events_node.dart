@@ -90,6 +90,7 @@ class EventsNode extends ChildNode implements Events {
   }
 
   void _addInstances(MotionEvents events) {
+    if (events == null) return;
     for(var src in events.sources) {
       provider.addNode('$path/$_instances/$_source/${src.value}',
           EventSourceNode.definition(src));
@@ -97,6 +98,8 @@ class EventsNode extends ChildNode implements Events {
   }
 
   void _addActionRules(List<ActionRule> rules) {
+    if (rules == null) return;
+
     for(var rule in rules) {
       provider.addNode('$path/$_alarms/$_rules/${rule.id}',
           ActionRuleNode.definition(rule));
@@ -104,6 +107,8 @@ class EventsNode extends ChildNode implements Events {
   }
 
   void _addActionConfigs(List<ActionConfig> configs) {
+    if (configs == null) return;
+
     for(var config in configs) {
       provider.addNode('$path/$_alarms/$_actions/${config.id}',
           ActionConfigNode.definition(config));
