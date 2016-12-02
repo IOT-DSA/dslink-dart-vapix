@@ -210,7 +210,7 @@ class DeviceNode extends SimpleNode implements Device {
         for (String key in map.keys) {
           var el = map[key];
           var nm = NodeNamer.createName(key);
-          if (el is Map) {
+          if (el is Map<String, dynamic>) {
             var nd = provider.getOrCreateNode('$path/$nm');
             genNodes(el, nd.path);
           } else {
