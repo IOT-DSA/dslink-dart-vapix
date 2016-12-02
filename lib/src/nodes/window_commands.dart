@@ -85,8 +85,13 @@ class AddWindow extends ChildNode {
     var nd = provider.getOrCreateNode('${parent.path}/$res');
     for (var key in params.keys) {
       var ndName = NodeNamer.createName(key);
-      provider.addNode('${nd.path}/$ndName',
-          ParamValue.definition('${params[key]}'));
+//      var tmpNd = provider.getNode('${nd.path}/$ndName');
+//      if (tmpNd == null) {
+        provider.addNode('${nd.path}/$ndName',
+            ParamValue.definition('${params[key]}'));
+//      } else {
+//        tmpNd.updateValue(params[key]);
+//      }
     }
 
     provider.addNode('${nd.path}/${RemoveWindow.pathName}',

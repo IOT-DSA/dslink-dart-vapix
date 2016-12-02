@@ -179,8 +179,12 @@ class VClient {
     var doc = await _soapRequest(soap.getEventInstances(), soap.headerGEI);
 
     if (doc == null) return null;
-    var el = doc.findAllElements('tnsaxis:MotionDetection')?.first;
-    var me = new MotionEvents(el);
+    var els = doc.findAllElements('tnsaxis:MotionDetection');
+    if (els == null || els.isEmpty) {
+      els = doc.findAllElements('tnsaxis:VMD3');
+      if (els == null || els.isEmpty) return null;
+    }
+    var me = new MotionEvents(els.first);
     _motionEvents = me;
     return me;
   }

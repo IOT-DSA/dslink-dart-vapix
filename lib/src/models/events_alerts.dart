@@ -10,8 +10,8 @@ class MotionEvents {
     for (var child in si.children) {
       var type = child.attributes.firstWhere(_matchNiceName)?.value;
       for (var c in child.children) {
-        var nm = c.attributes.firstWhere(_matchNiceName)?.value;
-        var ch = c.attributes.firstWhere(_matchUserStr)?.value;
+        var nm = c.attributes.firstWhere(_matchNiceName, orElse: () => null)?.value;
+        var ch = c.attributes.firstWhere(_matchUserStr, orElse: () => null)?.value;
         var val = c.text;
         sources.add(new MotionSource(type, nm, ch, val));
       }
