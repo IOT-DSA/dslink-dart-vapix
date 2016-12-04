@@ -39,6 +39,7 @@ class AddDevice extends SimpleNode {
   static const String _addr = 'address';
   static const String _user = 'username';
   static const String _pass = 'password';
+  static const String _sec = 'secure';
   static const String _success = 'success';
   static const String _message = 'message';
 
@@ -50,7 +51,8 @@ class AddDevice extends SimpleNode {
       {'name': _name, 'type': 'string', 'placeholder': 'Device Name'},
       {'name': _addr, 'type': 'string', 'placeholder': 'http://<ipaddress>'},
       {'name': _user, 'type': 'string', 'placeholder': 'Username'},
-      {'name': _pass, 'type': 'string', 'editor': 'password'}
+      {'name': _pass, 'type': 'string', 'editor': 'password'},
+      {'name': _sec, 'type': 'bool', 'default': true}
     ],
     r'$columns' : [
       { 'name' : _success, 'type' : 'bool', 'default' : false },
@@ -85,14 +87,15 @@ class AddDevice extends SimpleNode {
 
     var u = params[_user];
     var p = params[_pass];
-    var cl = new VClient(uri, u, p);
+    var s = params[_sec];
+    var cl = new VClient(uri, u, p, s);
     var res = await cl.authenticate();
 
     switch(res) {
       case AuthError.ok:
         ret..[_success] = true
           ..[_message] = 'Success!';
-        nd = provider.addNode('/$name', DeviceNode.definition(uri, u, p));
+        nd = provider.addNode('/$name', DeviceNode.definition(uri, u, p, s));
         _link.save();
         break;
       case AuthError.notFound:
@@ -123,11 +126,13 @@ class AddDevice extends SimpleNode {
 //* specified when being added.
 class DeviceNode extends SimpleNode implements Device {
   static const String isType = 'deviceNode';
-  static Map<String, dynamic> definition(Uri uri, String user, String pass) => {
+  static Map<String, dynamic>
+  definition(Uri uri, String user, String pass, bool sec) => {
     r'$is': isType,
     _uri: uri.toString(),
     _user: user,
     _pass: pass,
+    _sec: sec,
     //* @Node params
     //* @Parent DeviceNode
     //*
@@ -146,13 +151,14 @@ class DeviceNode extends SimpleNode implements Device {
       r'?value' : '${uri.toString()}/mjpg/video.mjpg',
     },
     EventsNode.pathName: EventsNode.definition(),
-    EditDevice.pathName: EditDevice.definition(uri, user),
+    EditDevice.pathName: EditDevice.definition(uri, user, sec),
     RemoveDevice.pathName: RemoveDevice.definition()
   };
 
   static const String _user = r'$$ax_user';
   static const String _pass = r'$$password';
   static const String _uri = r'$$ax_uri';
+  static const String _sec = r'$$ax_secure';
   static const String _params = 'params';
   static const String _motion = 'Motion';
 
@@ -187,6 +193,7 @@ class DeviceNode extends SimpleNode implements Device {
     var u = getConfig(_user);
     var p = getConfig(_pass);
     var a = getConfig(_uri);
+    var s = getConfig(_sec) as bool;
 
     Uri uri;
     try {
@@ -196,7 +203,7 @@ class DeviceNode extends SimpleNode implements Device {
       return;
     }
 
-    _cl = new VClient(uri, u, p);
+    _cl = new VClient(uri, u, p, s);
     _clComp.complete(_cl);
 
     _cl.authenticate().then((AuthError ae) {
@@ -246,13 +253,13 @@ class DeviceNode extends SimpleNode implements Device {
     });
   }
 
-  Future<AuthError> updateConfig(Uri uri, String user, String pass) async {
+  Future<AuthError> updateConfig(Uri uri, String user, String pass, bool secure) async {
     if (pass == null || pass.isEmpty) {
       pass = getConfig(_pass);
     }
-    var res = await _cl.updateClient(uri, user, pass);
+    var res = await _cl.updateClient(uri, user, pass, secure);
     if (res == AuthError.ok) {
-      _cl = new VClient(uri, user, pass);
+      _cl = new VClient(uri, user, pass, secure);
       configs[_uri] = uri.toString();
       configs[_user] = user;
       configs[_pass] = pass;
@@ -286,17 +293,19 @@ class EditDevice extends SimpleNode {
   static const String _addr = 'address';
   static const String _user = 'username';
   static const String _pass = 'password';
+  static const String _sec = 'secure';
   static const String _success = 'success';
   static const String _message = 'message';
 
-  static Map<String, dynamic> definition(Uri uri, String user) => {
+  static Map<String, dynamic> definition(Uri uri, String user, bool sec) => {
     r'$is' : isType,
     r'$name' : 'Edit Device',
     r'$invokable' : 'write',
     r'$params' : [
       {'name': _addr, 'type': 'string', 'default': uri.toString()},
       {'name': _user, 'type': 'string', 'placeholder': user},
-      {'name': _pass, 'type': 'string', 'editor': 'password'}
+      {'name': _pass, 'type': 'string', 'editor': 'password'},
+      {'name': _sec, 'type': 'bool', 'default': sec}
     ],
     r'$columns' : [
       { 'name' : _success, 'type' : 'bool', 'default' : false },
@@ -321,7 +330,8 @@ class EditDevice extends SimpleNode {
 
     var u = params[_user];
     var p = params[_pass];
-    var res = await (parent as DeviceNode).updateConfig(uri, u, p);
+    var s = params[_sec];
+    var res = await (parent as DeviceNode).updateConfig(uri, u, p, s);
 
     switch(res) {
       case AuthError.ok:

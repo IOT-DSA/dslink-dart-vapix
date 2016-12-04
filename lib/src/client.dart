@@ -21,8 +21,8 @@ class VClient {
   String _pass;
   http.Client _client;
 
-  List<ActionConfig> _configs;
-  List<ActionRule> _rules;
+  List<ActionConfig> _configs = new List<ActionConfig>();
+  List<ActionRule> _rules = new List<ActionRule>();
   MotionEvents _motionEvents;
 
   List<ActionConfig> getConfigs() => _configs;
@@ -33,13 +33,19 @@ class VClient {
   bool _authenticated = false;
   int _authAttempt = 0;
 
-  factory VClient(Uri uri, String user, String pass) =>
-      _cache['$user@$uri'] ??= new VClient._(uri, user, pass);
+  factory VClient(Uri uri, String user, String pass, bool secure) =>
+      _cache['$user@$uri'] ??= new VClient._(uri, user, pass, secure);
 
-  VClient._(this._origUri, this._user, this._pass) {
+  VClient._(this._origUri, this._user, this._pass, bool secure) {
     _rootUri = _origUri.replace(userInfo: '');
     var inner = new HttpClient();
-    var cred = new HttpClientDigestCredentials(_user, _pass);
+    HttpClientCredentials cred;
+    if (secure) {
+      cred = new HttpClientDigestCredentials(_user, _pass);
+    } else {
+      _rootUri = _rootUri.replace(userInfo: '$_user:$_pass');
+      cred = new HttpClientBasicCredentials(_user, _pass);
+    }
     inner.authenticate = (Uri url, String scheme, String realm) async {
       if (_authAttempt >= 10) return false;
       inner.addCredentials(url, realm, cred);
@@ -83,8 +89,9 @@ class VClient {
     return AuthError.ok;
   }
 
-  Future<AuthError> updateClient(Uri uri, String user, String pass) async {
-    var cl = new VClient._(uri, user, pass);
+  Future<AuthError>
+  updateClient(Uri uri, String user, String pass, bool secure) async {
+    var cl = new VClient._(uri, user, pass, secure);
     var res = await cl.authenticate();
     if (res == AuthError.ok) {
       close();
@@ -210,7 +217,6 @@ class VClient {
       }
       res.add(config);
     }
-    _configs = res;
     return res;
   }
 
@@ -294,15 +300,19 @@ class VClient {
   }
 
   Future<xml.XmlDocument> _soapRequest(String msg, String header) async {
-    final url = _rootUri.replace(path: 'vapix/services');
+    var qp = {
+      'timestamp': '${new DateTime.now().millisecondsSinceEpoch}'
+    };
+    final url = _rootUri.replace(path: 'vapix/services', queryParameters: qp);
     final headers = <String, String>{
-      'Content-Type': 'text/xml; charset=utf-8',
+      'Content-Type': 'text/xml; charset=UTF-8',
       'SOAPAction': header
     };
 
     String respBody;
     try {
-      final resp = await _client.post(url, body: msg, headers: headers);
+      final resp = await _client.post(url, body: msg, headers: headers)
+          .timeout(new Duration(seconds: 30));
 
       if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
         _authAttempt = 0;
@@ -312,6 +322,9 @@ class VClient {
       } else {
         respBody = resp.body;
       }
+    } on TimeoutException catch (e) {
+      logger.warning('SOAP Request timed out.', e);
+      return null;
     } catch (e) {
       logger.warning('Sending SOAP request failed', e);
     }

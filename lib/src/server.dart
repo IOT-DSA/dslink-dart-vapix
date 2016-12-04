@@ -31,7 +31,6 @@ class Server {
             logger.warning('Socket received error', err);
             _notices.addError(err);
           }, onDone: () {
-            logger.finest('Socket done');
             sock?.close();
           });
         }

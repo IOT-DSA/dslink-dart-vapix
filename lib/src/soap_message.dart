@@ -23,7 +23,7 @@ const String headerGEI =
     r'http://www.axis.com/vapix/ws/event1/GetEventInstances';
 
 const String _event1 = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
-const String _eventNoNS = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
+const String _eventNoNS = r'xmlns="http://www.axis.com/vapix/ws/event1"';
 const String _action1 = r'xmlns:aa="http://www.axis.com/vapix/ws/action1"';
 const String _actionNoNS = r'xmlns="http://www.axis.com/vapix/ws/action1"';
 
