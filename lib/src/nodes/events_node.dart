@@ -54,6 +54,7 @@ class EventsNode extends ChildNode implements Events {
       //* @Parent alarms
       //*
       //* Collection of rules that define when an action should be triggered.
+      RefreshActions.pathName: RefreshActions.definition(),
       _rules: {
         AddActionRule.pathName: AddActionRule.definition()
       },
@@ -71,6 +72,11 @@ class EventsNode extends ChildNode implements Events {
   EventsNode(String path) : super(path);
 
   void onCreated() {
+    var nd = provider.getNode('$path/$_alarms/${RefreshActions.pathName}');
+    if (nd == null) {
+      provider.addNode('$path/$_alarms/${RefreshActions.pathName}',
+          RefreshActions.definition());
+    }
     getClient().then((cl) {
       cl.getEventInstances().then(_addInstances);
       cl.getActionRules().then(_addActionRules);
@@ -663,5 +669,77 @@ class RemoveActionConfig extends ChildNode {
     }
 
     return ret;
+  }
+}
+
+class RefreshActions extends ChildNode {
+  static const String isType = 'refreshActions';
+  static const String pathName = 'Refresh';
+
+  static const String _alarms = 'alarms';
+  static const String _rules = 'rules';
+  static const String _actions = 'actions';
+  static const String _success = 'success';
+  static const String _message = 'message';
+
+  static Map<String, dynamic> definition() => {
+    r'$is': isType,
+    r'$name': 'Refresh',
+    r'$invokable': 'write',
+    r'$params': [],
+    r'$columns': [
+      {'name': _success, 'type': 'bool', 'default': false},
+      {'name': _message, 'type': 'string', 'default': ''}
+    ]
+  };
+
+  RefreshActions(String path) : super(path);
+
+  @override
+  Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
+    final ret = {_success: true, _message: 'Success!'};
+
+    var cl = await getClient();
+    var futs = new List<Future<Null>>();
+    futs.add(cl.getActionConfigs().then(_getConfigs));
+    futs.add(cl.getActionRules().then(_getRules));
+
+    await Future.wait(futs);
+
+    return ret;
+  }
+
+  void _getConfigs(List<ActionConfig> configs) {
+    if (configs == null) return;
+
+    var nd = provider.getNode('${parent.path}/$_actions');
+    var list = nd?.children.values.toList();
+    if (list != null) {
+      for (var c in list) {
+        if (c is ActionConfigNode) c.remove();
+      }
+    }
+
+    for(var config in configs) {
+      provider.addNode('${parent.path}/$_actions/${config.id}',
+          ActionConfigNode.definition(config));
+    }
+  }
+
+  void _getRules(List<ActionRule> rules) {
+    if (rules == null) return;
+
+    var nd = provider.getNode('${parent.path}/$_rules');
+    var list = nd?.children.values.toList();
+    if (list != null) {
+      for (var c in list) {
+        if (c is ActionRuleNode) c.remove();
+      }
+    }
+
+    for(var rule in rules) {
+      provider.addNode('${parent.path}/$_rules/${rule.id}',
+          ActionRuleNode.definition(rule));
+    }
   }
 }

@@ -21,6 +21,7 @@ main(List<String> args) async {
     RemoveActionRule.isType: (String path) => new RemoveActionRule(path, link),
     AddActionConfig.isType: (String path) => new AddActionConfig(path, link),
     ActionConfigNode.isType: (String path) => new ActionConfigNode(path),
+    RefreshActions.isType: (String path) => new RefreshActions(path),
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link)
   }, defaultNodes: {

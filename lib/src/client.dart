@@ -197,8 +197,10 @@ class VClient {
   }
 
   Future<List<ActionConfig>> getActionConfigs() async {
+    print('Getting Configs');
     var doc = await _soapRequest(soap.getActionConfigs(), soap.headerGAC);
 
+    if (doc == null) print('Failed to get configs');
     if (doc == null) return null;
     var configs = doc.findAllElements('aa:ActionConfiguration');
     var res = new List<ActionConfig>();
