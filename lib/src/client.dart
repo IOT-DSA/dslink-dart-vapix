@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' show Random;
 
 import 'package:http/http.dart' as http;
 import 'package:dslink/utils.dart' show logger;
 import 'package:xml/xml.dart' as xml;
+import 'package:crypto/crypto.dart' show md5, MD5, Digest;
 
 import 'soap_message.dart' as soap;
 import 'models/axis_device.dart';
@@ -19,6 +21,7 @@ class VClient {
   Uri _origUri;
   String _user;
   String _pass;
+  String _ha1;
   http.Client _client;
 
   List<ActionConfig> _configs = new List<ActionConfig>();
@@ -38,21 +41,10 @@ class VClient {
 
   VClient._(this._origUri, this._user, this._pass, bool secure) {
     _rootUri = _origUri.replace(userInfo: '');
-    var inner = new HttpClient();
-    HttpClientCredentials cred;
-    if (secure) {
-      cred = new HttpClientDigestCredentials(_user, _pass);
-    } else {
+    if (!secure) {
       _rootUri = _rootUri.replace(userInfo: '$_user:$_pass');
-      cred = new HttpClientBasicCredentials(_user, _pass);
     }
-    inner.authenticate = (Uri url, String scheme, String realm) async {
-      if (_authAttempt >= 10) return false;
-      inner.addCredentials(url, realm, cred);
-      _authAttempt += 1;
-      return true;
-    };
-    _client = new http.IOClient(inner);
+    _client = new http.IOClient();
   }
 
   // Try authenticate and load the parameters for the device.
@@ -64,17 +56,28 @@ class VClient {
     String body;
     try {
       var resp = await _client.get(uri);
+      String authHead;
+      while (_authAttempt < 3 && resp.statusCode == HttpStatus.UNAUTHORIZED) {
+        authHead = _digestAuth(uri, resp);
+        print('Attempt: $_authAttempt');
+        resp = await _client.get(uri, headers: {
+          HttpHeaders.AUTHORIZATION: authHead
+        });
+      }
+
       if (resp.statusCode != HttpStatus.OK) {
         logger.warning('Request returned status code: ${resp.statusCode}');
       }
+
       if (resp.statusCode == HttpStatus.UNAUTHORIZED) {
         logger.warning('Unauthorized: UserInfo ${uri.userInfo}');
         close();
         return AuthError.auth;
       }
       body = resp.body;
-    } catch (e) {
-      logger.warning('Error getting url: $uri', e);
+      _authAttempt = 0;
+    } catch (e, s) {
+      logger.warning('Error getting url: $uri', e, s);
       return AuthError.server;
     }
 
@@ -87,6 +90,56 @@ class VClient {
     device = new AxisDevice(_rootUri, body);
     _authenticated = true;
     return AuthError.ok;
+  }
+
+  String _digestAuth(Uri uri, http.Response resp) {
+    var authVals = HeaderValue.parse(resp.headers[HttpHeaders.WWW_AUTHENTICATE],
+        parameterSeparator: ',') ;
+
+    var reqUri = uri.path;
+    if (uri.hasQuery) {
+      reqUri = '$reqUri?${uri.query}';
+    }
+    var realm = authVals.parameters['realm'];
+    if (_ha1 == null || _ha1 == "") {
+      _ha1 = (md5 as MD5).convert('$_user:$realm:$_pass'.codeUnits).toString();
+    }
+    var ha2 = (md5 as MD5).convert('${resp.request.method}:$reqUri'.codeUnits)
+        .toString();
+    var nonce = authVals.parameters['nonce'];
+    var nc = (++_authAttempt).toRadixString(16);
+    nc = nc.padLeft(8, '0');
+    var cnonce = _generateCnonce();
+    var qop = authVals.parameters['qop'];
+    var response = (md5 as MD5)
+        .convert('$_ha1:$nonce:$nc:$cnonce:$qop:$ha2'.codeUnits)
+        .toString();
+
+    StringBuffer buffer = new StringBuffer()
+      ..write('Digest ')
+      ..write('username="$_user"')
+      ..write(', realm="$realm"')
+      ..write(', nonce="$nonce"')
+      ..write(', uri="$reqUri"')
+      ..write(', qop=$qop')
+      ..write(', algorithm="MD5"')
+      ..write(', nc=$nc')
+      ..write(', cnonce="$cnonce"')
+      ..write(', response="$response"');
+    if (authVals.parameters.containsKey('opaque')) {
+      buffer.write(', opaque="${authVals.parameters['opaque']}"');
+    }
+
+    return buffer.toString();
+  }
+
+  String _generateCnonce() {
+    List<int> l = <int>[];
+    var rand = new Random.secure();
+    for (var i = 0; i < 4; i++) {
+      l.add(rand.nextInt(255));
+    }
+    return new Digest(l).toString();
   }
 
   Future<AuthError>
@@ -121,6 +174,12 @@ class VClient {
     http.Response resp;
     try {
       resp = await _client.get(uri);
+      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 3) {
+        var authHead = _digestAuth(uri, resp);
+        resp = await _client.get(uri, headers: {
+          HttpHeaders.AUTHORIZATION: authHead
+        });
+      }
     } catch (e) {
       logger.warning('Error adding motion', e);
     }
@@ -142,6 +201,12 @@ class VClient {
     http.Response resp;
     try {
       resp = await _client.get(uri);
+      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 3) {
+        var authHead = _digestAuth(uri, resp);
+        resp = await _client.get(uri, headers: {
+          HttpHeaders.AUTHORIZATION: authHead
+        });
+      }
     } catch (e) {
       logger.warning('Error removing motion window', e);
     }
@@ -167,6 +232,12 @@ class VClient {
     http.Response resp;
     try {
       resp = await _client.get(uri);
+      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 3) {
+        var authHead = _digestAuth(uri, resp);
+        resp = await _client.get(uri, headers: {
+          HttpHeaders.AUTHORIZATION: authHead
+        });
+      }
     } catch (e) {
       logger.warning('Error modifying parameter: $path', e);
     }
@@ -307,20 +378,26 @@ class VClient {
     };
     final url = _rootUri.replace(path: 'vapix/services', queryParameters: qp);
     final headers = <String, String>{
-      'Content-Type': 'text/xml; charset=UTF-8',
+      'Content-Type': 'text/xml;charset=UTF-8',
       'SOAPAction': header
     };
 
     String respBody;
     try {
-      final resp = await _client.post(url, body: msg, headers: headers)
+      var resp = await _client.post(url, body: msg, headers: headers)
           .timeout(new Duration(seconds: 30));
+
+      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 4) {
+        var auth = _digestAuth(url, resp);
+        headers[HttpHeaders.AUTHORIZATION] = auth;
+        resp = await _client.post(url, headers: headers, body: msg);
+      }
 
       if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
         _authAttempt = 0;
       }
       if (resp.statusCode != HttpStatus.OK) {
-        _logErr(resp, header);
+        _logErr(resp, header, msg, headers);
       } else {
         respBody = resp.body;
       }
@@ -342,11 +419,13 @@ class VClient {
     return doc;
   }
 
-  void _logErr(http.Response resp, String action) {
+  void _logErr(http.Response resp, String action, String msg, Map headers) {
     logger.warning('Action Failed: $action\n'
         'Status code: ${resp.statusCode}\n'
         'Reason: ${resp.reasonPhrase}\n'
-        'Body: ${resp.body}');
+        'Body: ${resp.body}\n'
+        'Message: $msg\n'
+        'Headers: $headers');
   }
 
 }

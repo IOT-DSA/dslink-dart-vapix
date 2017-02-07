@@ -65,7 +65,7 @@ class AddDevice extends SimpleNode {
   AddDevice(String path, this._link) : super(path);
 
   @override
-  Future<Map<String, dynamic>> onInvoke(Map<String, String> params) async {
+  Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = { _success: false, _message: '' };
 
     if (params[_name] == null || params[_name].isEmpty) {
@@ -87,7 +87,7 @@ class AddDevice extends SimpleNode {
 
     var u = params[_user];
     var p = params[_pass];
-    var s = params[_sec];
+    var s = params[_sec] as bool;
     var cl = new VClient(uri, u, p, s);
     var res = await cl.authenticate();
 
@@ -230,6 +230,8 @@ class DeviceNode extends SimpleNode implements Device {
           }
         }
       } // end genNodes
+
+      if (dev == null) return;
 
       var p = provider.getNode('$path/$_params');
       genNodes(dev.params.map, p.path);
