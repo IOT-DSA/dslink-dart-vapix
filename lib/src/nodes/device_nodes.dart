@@ -196,6 +196,12 @@ class DeviceNode extends SimpleNode implements Device {
           ReconnectDevice.def());
     }
 
+    nd = provider.getNode('$path/${ParamsNode.pathName}') as SimpleNode;
+    if (nd != null && nd.getConfig(r'$is') != ParamsNode.isType) {
+      nd.remove();
+      provider.addNode('$path/${ParamsNode.pathName}', ParamsNode.def());
+    }
+
     var u = getConfig(_user);
     var p = getConfig(_pass);
     var a = getConfig(_uri);
