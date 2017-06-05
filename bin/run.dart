@@ -10,6 +10,7 @@ main(List<String> args) async {
     NotificationNode.isType: (String path) => new NotificationNode(path),
     AddDevice.isType: (String path) => new AddDevice(path, link),
     DeviceNode.isType: (String path) => new DeviceNode(path),
+    ParamsNode.isType: (String path) => new ParamsNode(path),
     ParamValue.isType: (String path) => new ParamValue(path),
     RemoveDevice.isType: (String path) => new RemoveDevice(path, link),
     AddWindow.isType: (String path) => new AddWindow(path),
@@ -21,6 +22,7 @@ main(List<String> args) async {
     RemoveActionRule.isType: (String path) => new RemoveActionRule(path, link),
     AddActionConfig.isType: (String path) => new AddActionConfig(path, link),
     ActionConfigNode.isType: (String path) => new ActionConfigNode(path),
+    ReconnectDevice.isType: (String path) => new ReconnectDevice(path),
     RefreshActions.isType: (String path) => new RefreshActions(path),
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link)

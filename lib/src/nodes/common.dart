@@ -29,4 +29,11 @@ abstract class ChildNode extends SimpleNode  {
 
   Future<AxisDevice> getDevice() => _getDev()?.device;
   Future<VClient> getClient() => _getDev()?.client;
+
+  String _discoTs;
+  String get disconnected => _discoTs;
+  void set disconnected(String val) {
+    _discoTs = val;
+    updateList(r'$disconnectedTs');
+  }
 }

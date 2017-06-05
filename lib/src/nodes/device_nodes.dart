@@ -138,7 +138,7 @@ class DeviceNode extends SimpleNode implements Device {
     //*
     //* Collection of ParamValues on the device. The link will automatically
     //* create a tree based on the configuration tree of the device.
-    _params: {},
+    ParamsNode.pathName: ParamsNode.def(),
     //* @Node mjpgUrl
     //* @Parent DeviceNode
     //*
@@ -152,14 +152,14 @@ class DeviceNode extends SimpleNode implements Device {
     },
     EventsNode.pathName: EventsNode.definition(),
     EditDevice.pathName: EditDevice.definition(uri, user, sec),
-    RemoveDevice.pathName: RemoveDevice.definition()
+    RemoveDevice.pathName: RemoveDevice.definition(),
+    ReconnectDevice.pathName: ReconnectDevice.def()
   };
 
   static const String _user = r'$$ax_user';
   static const String _pass = r'$$password';
   static const String _uri = r'$$ax_uri';
   static const String _sec = r'$$ax_secure';
-  static const String _params = 'params';
   static const String _motion = 'Motion';
 
   void setDevice(AxisDevice dev) {
@@ -190,6 +190,12 @@ class DeviceNode extends SimpleNode implements Device {
 
   @override
   void onCreated() {
+    var nd = provider.getNode('$path/${ReconnectDevice.pathName}');
+    if (nd == null) {
+      provider.addNode('$path/${ReconnectDevice.pathName}',
+          ReconnectDevice.def());
+    }
+
     var u = getConfig(_user);
     var p = getConfig(_pass);
     var a = getConfig(_uri);
@@ -204,55 +210,59 @@ class DeviceNode extends SimpleNode implements Device {
     }
 
     _cl = new VClient(uri, u, p, s);
-    _clComp.complete(_cl);
+    _cl.onDisconnect = _onDisconnect;
 
     _cl.authenticate().then((AuthError ae) {
       if (ae != AuthError.ok) return null;
 
+      _clComp.complete(_cl);
       var dev = _cl.device;
       setDevice(dev);
       return dev;
-    }).then((AxisDevice dev) {
-      void genNodes(Map<String, dynamic> map, String path) {
-        for (String key in map.keys) {
-          var el = map[key];
-          var nm = NodeNamer.createName(key);
-          if (el is Map<String, dynamic>) {
-            var nd = provider.getOrCreateNode('$path/$nm');
-            genNodes(el, nd.path);
+    }).then(_populateNodes);
+  }
+
+  void _populateNodes(AxisDevice dev) {
+    void genNodes(Map<String, dynamic> map, String path) {
+      for (String key in map.keys) {
+        var el = map[key];
+        var nm = NodeNamer.createName(key);
+        if (el is Map<String, dynamic>) {
+          var nd = provider.getOrCreateNode('$path/$nm');
+          genNodes(el, nd.path);
+        } else {
+          var nd = provider.getNode('$path/$nm');
+          if (nd == null) {
+            nd = provider.addNode('$path/$nm', ParamValue.definition(el));
           } else {
-            var nd = provider.getNode('$path/$nm');
-            if (nd == null) {
-              nd = provider.addNode('$path/$nm', ParamValue.definition(el));
-            } else {
-              nd.updateValue(el);
-            }
+            nd.updateValue(el);
           }
         }
-      } // end genNodes
-
-      if (dev == null) return;
-
-      var p = provider.getNode('$path/$_params');
-      genNodes(dev.params.map, p.path);
-      //* @Node Motion
-      //* @Parent params
-      //*
-      //* Collection of Motion detection related parameters.
-      var mNode = provider.getOrCreateNode('$path/$_params/$_motion');
-      if (mNode == null) return;
-
-      //* @Node MotionWindow
-      //* @Parent Motion
-      //*
-      //* Collection of ParamValues that make up the Motion Window.
-      for (var p in mNode.children.keys) {
-        provider.addNode('${mNode.path}/$p/${RemoveWindow.pathName}',
-            RemoveWindow.definition());
       }
-      provider.addNode('${mNode.path}/${AddWindow.pathName}',
-          AddWindow.definition());
-    });
+    } // end genNodes
+
+    if (dev == null) return;
+
+    var p = provider.getNode('$path/${ParamsNode.pathName}');
+    genNodes(dev.params.map, p.path);
+    //* @Node Motion
+    //* @Parent params
+    //*
+    //* Collection of Motion detection related parameters.
+    var mNode =
+    provider.getOrCreateNode('$path/${ParamsNode.pathName}/$_motion');
+    if (mNode == null) return;
+
+    //* @Node MotionWindow
+    //* @Parent Motion
+    //*
+    //* Collection of ParamValues that make up the Motion Window.
+    for (var p in mNode.children.keys) {
+      provider.addNode('${mNode.path}/$p/${RemoveWindow.pathName}',
+          RemoveWindow.definition());
+    }
+    provider.addNode('${mNode.path}/${AddWindow.pathName}',
+        AddWindow.definition());
   }
 
   Future<AuthError> updateConfig(Uri uri, String user, String pass, bool secure) async {
@@ -268,6 +278,30 @@ class DeviceNode extends SimpleNode implements Device {
     }
 
     return res;
+  }
+
+  Future<AuthError> reconnect() async {
+    var res = await _cl.reconnect();
+    if (res == AuthError.ok) {
+      setDevice(_cl.device);
+      _populateNodes(_device);
+    }
+
+    return res;
+  }
+
+  void _onDisconnect(bool disconnected) {
+    if (!disconnected) {
+      children.values.where((nd) => nd is ChildNode).forEach((ChildNode nd) {
+        nd.disconnected = null;
+      });
+    } else {
+      children.values.where((nd) => nd is ChildNode && nd.disconnected == null)
+          .forEach((nd) {
+        (nd as ChildNode).disconnected = ValueUpdate.getTs();
+      });
+    }
+
   }
 }
 
@@ -402,3 +436,40 @@ class RemoveDevice extends SimpleNode {
   }
 }
 
+class ReconnectDevice extends SimpleNode {
+  static const String isType = 'reconnectDevice';
+  static const String pathName = 'reconnect';
+
+  static Map<String, dynamic> def() => {
+    r'$is': isType,
+    r'$name': 'Reconnect Device',
+    r'$invokable': 'write',
+    r'$params': [],
+    r'$columns': [
+      {'name': _success, 'type': 'bool', 'default': false},
+      {'name': _message, 'type': 'string', 'default': ''}
+    ]
+  };
+
+  static const String _success = 'success';
+  static const String _message = 'message';
+
+  ReconnectDevice(String path) : super(path);
+
+  @override
+  Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
+    var ret = {_success: false, _message: ''};
+
+    var res = await (parent as DeviceNode).reconnect();
+    switch(res) {
+      case AuthError.ok:
+        ret[_success] = true;
+        break;
+      default:
+        ret..[_success] = false
+            ..[_message] = 'Error authenticating';
+    }
+
+    return ret;
+  }
+}

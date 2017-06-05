@@ -13,6 +13,8 @@ import 'models/events_alerts.dart';
 
 enum AuthError { ok, auth, notFound, server, other }
 
+typedef void disconnectCallback(bool);
+
 class VClient {
   static final Map<String, VClient> _cache = <String, VClient>{};
   static final String _paramPath = '/axis-cgi/param.cgi';
@@ -23,6 +25,7 @@ class VClient {
   String _pass;
   String _ha1;
   http.Client _client;
+  disconnectCallback onDisconnect;
 
   List<ActionConfig> _configs = new List<ActionConfig>();
   List<ActionRule> _rules = new List<ActionRule>();
@@ -45,6 +48,12 @@ class VClient {
       _rootUri = _rootUri.replace(userInfo: '$_user:$_pass');
     }
     _client = new http.IOClient();
+  }
+
+  Future<AuthError> reconnect() async {
+    _authenticated = false;
+    _authAttempt = 0;
+    return authenticate();
   }
 
   // Try authenticate and load the parameters for the device.
@@ -72,12 +81,14 @@ class VClient {
       if (resp.statusCode == HttpStatus.UNAUTHORIZED) {
         logger.warning('Unauthorized: UserInfo ${uri.userInfo}');
         close();
+        if (onDisconnect != null) onDisconnect(true);
         return AuthError.auth;
       }
       body = resp.body;
       _authAttempt = 0;
-    } catch (e, s) {
-      logger.warning('Error getting url: $uri', e, s);
+    } catch (e) {
+      logger.warning('Error getting url: $uri', e);
+      if (onDisconnect != null) onDisconnect(true);
       return AuthError.server;
     }
 
@@ -89,6 +100,7 @@ class VClient {
     _authAttempt = 0;
     device = new AxisDevice(_rootUri, body);
     _authenticated = true;
+    if (onDisconnect != null) onDisconnect(false);
     return AuthError.ok;
   }
 
@@ -154,7 +166,7 @@ class VClient {
   }
 
   void close() {
-    _client.close();
+    _client?.close();
     _cache.remove('$_user@$_origUri');
   }
 
@@ -181,15 +193,24 @@ class VClient {
         });
       }
     } catch (e) {
+      if (onDisconnect != null) onDisconnect(true);
+      _authenticated = false;
       logger.warning('Error adding motion', e);
     }
 
     if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
       _authAttempt = 0;
     }
-    if (resp.statusCode != HttpStatus.OK) return null;;
+
+    if (resp.statusCode != HttpStatus.OK) {
+      if (onDisconnect != null) onDisconnect(true);
+      _authenticated = false;
+      return null;
+    }
+
     return resp.body.split(' ')[0];
   }
+
 
   Future<bool> removeMotion(String group) async {
     final Map<String, String> map = {
@@ -240,11 +261,14 @@ class VClient {
       }
     } catch (e) {
       logger.warning('Error modifying parameter: $path', e);
+      if (onDisconnect != null) onDisconnect(true);
+      _authenticated = false;
     }
 
     if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
       _authAttempt = 0;
     }
+
     var res = resp.body.trim().toLowerCase() == 'ok';
     if (!res) {
       logger.warning('Failed to modify parameter: ${resp.body}');
@@ -271,7 +295,6 @@ class VClient {
     print('Getting Configs');
     var doc = await _soapRequest(soap.getActionConfigs(), soap.headerGAC);
 
-    if (doc == null) print('Failed to get configs');
     if (doc == null) return null;
     var configs = doc.findAllElements('aa:ActionConfiguration');
     var res = new List<ActionConfig>();
@@ -396,16 +419,21 @@ class VClient {
       if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
         _authAttempt = 0;
       }
+
       if (resp.statusCode != HttpStatus.OK) {
         _logErr(resp, header, msg, headers);
       } else {
         respBody = resp.body;
       }
     } on TimeoutException catch (e) {
+      if (onDisconnect != null) onDisconnect(true);
+      _authenticated = false;
       logger.warning('SOAP Request timed out.', e);
       return null;
     } catch (e) {
       logger.warning('Sending SOAP request failed', e);
+      if (onDisconnect != null) onDisconnect(true);
+      _authenticated = false;
     }
 
     xml.XmlDocument doc;
