@@ -238,3 +238,17 @@ then it will increase once each time a new motion is detected.
 If you wish to reset the value of a notification, you can right-click on the
 notification and choose `@set`. You can then set the value to whatever number
 you would like (eg: 0).
+
+### Configuring Notification Server
+
+By default, the notification server runs on port `4444` and binds to `0.0.0.0`
+which is to say it binds to all interfaces (addresses) associated with the
+current machine. If you wish to force or limit binding to a specific IP address
+or to change the port, you can do so under the `Axis` > `Notices` > `Server Config`
+node. Under here you will find a value for `Bind IP`, `Port Number` and finally a
+`status` value which indicates if the notification server is running or stopped.
+
+You can use the `@set` action on either of the above values to change them. If
+changing the server status to `running` and the value immediately reverts to 
+`stopped` again, then the server is most likely encountering an error when trying
+to start. Please check the log files for the link to look for any errors.
