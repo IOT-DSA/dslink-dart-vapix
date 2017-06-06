@@ -19,6 +19,7 @@ class NoticeNode extends SimpleNode {
   static const String _bindIp = 'bindIp';
   static const String _port = 'port';
   static const String _config = 'config';
+  static const String _status = 'status';
 
   static Map<String, dynamic> definition() => {
     r'$is': isType,
@@ -52,6 +53,12 @@ class NoticeNode extends SimpleNode {
         r'$editor': 'int',
         r'?value': 4444,
         r'$writable': 'write'
+      },
+      _status: {
+        r'$name': 'Status',
+        r'$type': 'bool[stopped,running]',
+        r'$writable': 'write',
+        r'?value': true
       }
     }
   };
@@ -66,16 +73,29 @@ class NoticeNode extends SimpleNode {
 
   @override
   void onCreated() {
-    var bindNd = provider.getNode('${path}/$_config/$_bindIp');
-    var portNd = provider.getNode('${path}/$_config/$_port');
+    var bindNd = provider.getNode('$path/$_config/$_bindIp');
+    var portNd = provider.getNode('$path/$_config/$_port');
+    var statusNd = provider.getNode('$path/$_config/$_status') as SimpleNode;
+    if (statusNd == null) {
+      statusNd = provider.addNode('$path/$_config/$_status', {
+        r'$name': 'Status',
+        r'$type': 'bool[stopped,running]',
+        r'$writable': 'write',
+        r'?value': true
+      });
+    }
+
     _ip = bindNd.value as String;
     _pt = (portNd.value as num).toInt();
     bindNd.subscribe((ValueUpdate update) => updateServer(update, false));
     portNd.subscribe((ValueUpdate update) => updateServer(update, true));
+    statusNd.subscribe(_runningChanged);
 
-    _server = new Server(_ip, _pt);
-    _server.start();
-    _server.notices.listen(receiveNotice);
+    var running = statusNd.value as bool;
+
+    if (running) {
+      _startServer();
+    }
   }
 
   void updateServer(ValueUpdate update, bool isPort) {
@@ -85,11 +105,10 @@ class NoticeNode extends SimpleNode {
       _ip = update.value as String;
     }
 
-    _server?.close()?.then((_) {
-      _server = new Server(_ip, _pt);
-      _server.start();
-      _server.notices.listen(receiveNotice);
-    });
+    if (_server.running) {
+      _server?.close()?.then((_) => _startServer());
+    }
+
     _link.save();
   }
 
@@ -101,6 +120,32 @@ class NoticeNode extends SimpleNode {
           as NotificationNode;
     }
     nd.increment();
+  }
+
+  void _runningChanged(ValueUpdate update) {
+    var run = update.value as bool;
+    if (!run && _server != null && _server.running) {
+      _server.close();
+    } else if (run) {
+      if (_server == null || !_server.running) {
+        _startServer();
+      }
+    }
+    _link.save();
+  }
+
+  void _startServer() {
+    if (_server == null || _server.bindIp != _ip || _server.port != _pt) {
+      _server = new Server(_ip, _pt);
+    }
+
+    _server.start().then((bool running) {
+      var statusNd = provider.getNode('$path/$_config/$_status') as SimpleNode;
+      statusNd.updateValue(running);
+      if (running) {
+        _server.notices.listen(receiveNotice);
+      }
+    });
   }
 }
 
