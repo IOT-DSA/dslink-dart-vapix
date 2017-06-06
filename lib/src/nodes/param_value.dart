@@ -1,5 +1,16 @@
 import 'common.dart';
 
+class ParamsNode extends ChildNode {
+  static const String isType = 'paramsNode';
+  static const String pathName = 'params';
+
+  static Map<String, dynamic> def() => {
+    r'$is': isType
+  };
+
+  ParamsNode(String path) : super(path);
+}
+
 //* @Node
 //* @MetaType ParamValue
 //* @Parent params
