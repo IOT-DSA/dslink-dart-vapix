@@ -13,7 +13,7 @@ import 'models/events_alerts.dart';
 
 enum AuthError { ok, auth, notFound, server, other }
 
-typedef void disconnectCallback(bool);
+typedef void disconnectCallback(bool disconnected);
 
 class VClient {
   static final Map<String, VClient> _cache = <String, VClient>{};
