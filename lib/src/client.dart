@@ -263,6 +263,7 @@ class VClient {
       logger.warning('Error modifying parameter: $path', e);
       if (onDisconnect != null) onDisconnect(true);
       _authenticated = false;
+      return false;
     }
 
     if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
@@ -271,7 +272,8 @@ class VClient {
 
     var res = resp.body.trim().toLowerCase() == 'ok';
     if (!res) {
-      logger.warning('Failed to modify parameter: ${resp.body}');
+      logger.warning('Failed to modify parameter "$path" with value: $value\n'
+          'Response was: ${resp.body}');
     }
 
     return res;
