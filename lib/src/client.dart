@@ -98,7 +98,7 @@ class VClient {
 
   String _digestAuth(Uri uri, http.Response resp) {
     var authVals = HeaderValue.parse(resp.headers[HttpHeaders.WWW_AUTHENTICATE],
-        parameterSeparator: ',') ;
+        parameterSeparator: ',');
 
     var reqUri = uri.path;
     if (uri.hasQuery) {
@@ -108,7 +108,8 @@ class VClient {
     if (_ha1 == null || _ha1 == "") {
       _ha1 = (md5 as MD5).convert('$_user:$realm:$_pass'.codeUnits).toString();
     }
-    var ha2 = (md5 as MD5).convert('${resp.request.method}:$reqUri'.codeUnits)
+    var ha2 = (md5 as MD5)
+        .convert('${resp.request.method}:$reqUri'.codeUnits)
         .toString();
     var nonce = authVals.parameters['nonce'];
     var nc = (++_authAttempt).toRadixString(16);
@@ -146,8 +147,8 @@ class VClient {
     return new Digest(l).toString();
   }
 
-  Future<AuthError>
-  updateClient(Uri uri, String user, String pass, bool secure) async {
+  Future<AuthError> updateClient(
+      Uri uri, String user, String pass, bool secure) async {
     var cl = new VClient._(uri, user, pass, secure);
     var res = await cl.authenticate();
     if (res == AuthError.ok) {
@@ -216,10 +217,7 @@ class VClient {
   }
 
   Future<bool> updateParameter(String path, String value) async {
-    final Map<String, String> params = {
-      'action': 'update',
-      path: value
-    };
+    final Map<String, String> params = {'action': 'update', path: value};
 
     var uri = _rootUri.replace(path: _paramPath, queryParameters: params);
     ClientResp resp;
@@ -319,7 +317,7 @@ class VClient {
       var rule = new ActionRule(id, nm, en, pa);
       var conds = r.findAllElements('aa:Condition');
       if (conds != null && conds.isNotEmpty) {
-        for(var c in conds) {
+        for (var c in conds) {
           var top = c.findElements('wsnt:TopicExpression')?.first?.text;
           var msg = c.findElements('wsnt:MessageContent')?.first?.text;
           rule.conditions.add(new Condition(top, msg));
@@ -358,9 +356,7 @@ class VClient {
   }
 
   Future<xml.XmlDocument> _soapRequest(String msg, String header) async {
-    var qp = {
-      'timestamp': '${new DateTime.now().millisecondsSinceEpoch}'
-    };
+    var qp = {'timestamp': '${new DateTime.now().millisecondsSinceEpoch}'};
     final url = _rootUri.replace(path: 'vapix/services', queryParameters: qp);
     final headers = <String, String>{
       'Content-Type': 'text/xml;charset=UTF-8',
@@ -414,13 +410,14 @@ class VClient {
     try {
       switch (req.method) {
         case reqMethod.GET:
-          resp = await _client.get(req.url, headers: req.headers)
+          resp = await _client
+              .get(req.url, headers: req.headers)
               .timeout(_Timeout);
           break;
         case reqMethod.POST:
-          resp =
-              await _client.post(req.url, headers: req.headers, body: req.msg)
-                .timeout(_Timeout);
+          resp = await _client
+              .post(req.url, headers: req.headers, body: req.msg)
+              .timeout(_Timeout);
           break;
       }
 
@@ -431,7 +428,8 @@ class VClient {
         if (req.method == reqMethod.GET) {
           resp = await _client.get(req.url, headers: headers).timeout(_Timeout);
         } else if (req.method == reqMethod.POST) {
-          resp = await _client.post(req.url, headers: headers, body: req.msg)
+          resp = await _client
+              .post(req.url, headers: headers, body: req.msg)
               .timeout(_Timeout);
         }
       }
@@ -446,7 +444,6 @@ class VClient {
       _reqPending = false;
       _sendRequest();
     }
-
   }
 }
 
