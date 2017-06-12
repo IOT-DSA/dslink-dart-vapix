@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection' show Queue;
 import 'dart:io';
 import 'dart:math' show Random;
 
@@ -15,6 +16,8 @@ enum AuthError { ok, auth, notFound, server, other }
 
 typedef void disconnectCallback(bool disconnected);
 
+const Duration _Timeout = const Duration(seconds: 30);
+
 class VClient {
   static final Map<String, VClient> _cache = <String, VClient>{};
   static final String _paramPath = '/axis-cgi/param.cgi';
@@ -26,6 +29,7 @@ class VClient {
   String _ha1;
   http.Client _client;
   disconnectCallback onDisconnect;
+  Queue<ClientReq> _queue;
 
   List<ActionConfig> _configs = new List<ActionConfig>();
   List<ActionRule> _rules = new List<ActionRule>();
@@ -48,6 +52,7 @@ class VClient {
       _rootUri = _rootUri.replace(userInfo: '$_user:$_pass');
     }
     _client = new http.IOClient();
+    _queue = new Queue<ClientReq>();
   }
 
   Future<AuthError> reconnect() async {
@@ -62,42 +67,29 @@ class VClient {
 
     var q = {'action': 'list'};
     var uri = _rootUri.replace(path: _paramPath, queryParameters: q);
+
+    ClientResp resp;
     String body;
     try {
-      var resp = await _client.get(uri);
-      String authHead;
-      while (_authAttempt < 3 && resp.statusCode == HttpStatus.UNAUTHORIZED) {
-        authHead = _digestAuth(uri, resp);
-        print('Attempt: $_authAttempt');
-        resp = await _client.get(uri, headers: {
-          HttpHeaders.AUTHORIZATION: authHead
-        });
-      }
-
-      if (resp.statusCode != HttpStatus.OK) {
-        logger.warning('Request returned status code: ${resp.statusCode}');
-      }
-
-      if (resp.statusCode == HttpStatus.UNAUTHORIZED) {
-        logger.warning('Unauthorized: UserInfo ${uri.userInfo}');
-        close();
-        if (onDisconnect != null) onDisconnect(true);
-        return AuthError.auth;
-      }
-      body = resp.body;
-      _authAttempt = 0;
+      resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
-      logger.warning('Error getting url: $uri', e);
-      if (onDisconnect != null) onDisconnect(true);
+      logger.warning('Failed to authenticate.', e);
       return AuthError.server;
     }
 
+    if (resp.status == HttpStatus.UNAUTHORIZED) {
+      logger.warning('Unauthorized: UserInfo ${uri.userInfo}');
+      close();
+      if (onDisconnect != null) onDisconnect(true);
+      return AuthError.auth;
+    }
+
+    body = resp.body;
     if (!body.contains('=')) {
       logger.warning('Error in body: $body');
       return AuthError.other;
     }
 
-    _authAttempt = 0;
     device = new AxisDevice(_rootUri, body);
     _authenticated = true;
     if (onDisconnect != null) onDisconnect(false);
@@ -106,7 +98,7 @@ class VClient {
 
   String _digestAuth(Uri uri, http.Response resp) {
     var authVals = HeaderValue.parse(resp.headers[HttpHeaders.WWW_AUTHENTICATE],
-        parameterSeparator: ',') ;
+        parameterSeparator: ',');
 
     var reqUri = uri.path;
     if (uri.hasQuery) {
@@ -116,7 +108,8 @@ class VClient {
     if (_ha1 == null || _ha1 == "") {
       _ha1 = (md5 as MD5).convert('$_user:$realm:$_pass'.codeUnits).toString();
     }
-    var ha2 = (md5 as MD5).convert('${resp.request.method}:$reqUri'.codeUnits)
+    var ha2 = (md5 as MD5)
+        .convert('${resp.request.method}:$reqUri'.codeUnits)
         .toString();
     var nonce = authVals.parameters['nonce'];
     var nc = (++_authAttempt).toRadixString(16);
@@ -154,8 +147,8 @@ class VClient {
     return new Digest(l).toString();
   }
 
-  Future<AuthError>
-  updateClient(Uri uri, String user, String pass, bool secure) async {
+  Future<AuthError> updateClient(
+      Uri uri, String user, String pass, bool secure) async {
     var cl = new VClient._(uri, user, pass, secure);
     var res = await cl.authenticate();
     if (res == AuthError.ok) {
@@ -183,58 +176,38 @@ class VClient {
     });
 
     var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
-    http.Response resp;
+    ClientResp resp;
     try {
-      resp = await _client.get(uri);
-      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 3) {
-        var authHead = _digestAuth(uri, resp);
-        resp = await _client.get(uri, headers: {
-          HttpHeaders.AUTHORIZATION: authHead
-        });
-      }
+      resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
-      if (onDisconnect != null) onDisconnect(true);
-      _authenticated = false;
-      logger.warning('Error adding motion', e);
+      logger.warning('Failed to add motion window.', e);
+      return null;
     }
 
-    if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
-      _authAttempt = 0;
-    }
-
-    if (resp.statusCode != HttpStatus.OK) {
-      if (onDisconnect != null) onDisconnect(true);
-      _authenticated = false;
+    String body = resp.body;
+    if (resp.status != HttpStatus.OK || body == null || body.isEmpty) {
+      logger.warning('Failed to add motion window. Status: ${resp.status}');
       return null;
     }
 
     return resp.body.split(' ')[0];
   }
 
-
   Future<bool> removeMotion(String group) async {
     final Map<String, String> map = {
       'action': 'remove',
       'group': 'Motion.$group'
     };
-
     var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
-    http.Response resp;
+
+    ClientResp resp;
     try {
-      resp = await _client.get(uri);
-      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 3) {
-        var authHead = _digestAuth(uri, resp);
-        resp = await _client.get(uri, headers: {
-          HttpHeaders.AUTHORIZATION: authHead
-        });
-      }
+      resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
-      logger.warning('Error removing motion window', e);
+      logger.warning('Failed to remove motion', e);
+      return false;
     }
 
-    if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
-      _authAttempt = 0;
-    }
     var res = resp.body.trim().toLowerCase() == 'ok';
     if (!res) {
       logger.warning('Failed to remove motion window: ${resp.body}');
@@ -244,30 +217,15 @@ class VClient {
   }
 
   Future<bool> updateParameter(String path, String value) async {
-    final Map<String, String> params = {
-      'action': 'update',
-      path: value
-    };
+    final Map<String, String> params = {'action': 'update', path: value};
 
     var uri = _rootUri.replace(path: _paramPath, queryParameters: params);
-    http.Response resp;
+    ClientResp resp;
     try {
-      resp = await _client.get(uri);
-      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 3) {
-        var authHead = _digestAuth(uri, resp);
-        resp = await _client.get(uri, headers: {
-          HttpHeaders.AUTHORIZATION: authHead
-        });
-      }
+      resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
       logger.warning('Error modifying parameter: $path', e);
-      if (onDisconnect != null) onDisconnect(true);
-      _authenticated = false;
       return false;
-    }
-
-    if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
-      _authAttempt = 0;
     }
 
     var res = resp.body.trim().toLowerCase() == 'ok';
@@ -359,7 +317,7 @@ class VClient {
       var rule = new ActionRule(id, nm, en, pa);
       var conds = r.findAllElements('aa:Condition');
       if (conds != null && conds.isNotEmpty) {
-        for(var c in conds) {
+        for (var c in conds) {
           var top = c.findElements('wsnt:TopicExpression')?.first?.text;
           var msg = c.findElements('wsnt:MessageContent')?.first?.text;
           rule.conditions.add(new Condition(top, msg));
@@ -398,51 +356,26 @@ class VClient {
   }
 
   Future<xml.XmlDocument> _soapRequest(String msg, String header) async {
-    var qp = {
-      'timestamp': '${new DateTime.now().millisecondsSinceEpoch}'
-    };
+    var qp = {'timestamp': '${new DateTime.now().millisecondsSinceEpoch}'};
     final url = _rootUri.replace(path: 'vapix/services', queryParameters: qp);
     final headers = <String, String>{
       'Content-Type': 'text/xml;charset=UTF-8',
       'SOAPAction': header
     };
 
-    String respBody;
+    ClientResp resp;
     try {
-      var resp = await _client.post(url, body: msg, headers: headers)
-          .timeout(new Duration(seconds: 30));
-
-      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 4) {
-        var auth = _digestAuth(url, resp);
-        headers[HttpHeaders.AUTHORIZATION] = auth;
-        resp = await _client.post(url, headers: headers, body: msg);
-      }
-
-      if (resp.statusCode != HttpStatus.UNAUTHORIZED) {
-        _authAttempt = 0;
-      }
-
-      if (resp.statusCode != HttpStatus.OK) {
-        _logErr(resp, header, msg, headers);
-      } else {
-        respBody = resp.body;
-      }
-    } on TimeoutException catch (e) {
-      if (onDisconnect != null) onDisconnect(true);
-      _authenticated = false;
-      logger.warning('SOAP Request timed out.', e);
-      return null;
+      resp = await _addRequest(url, reqMethod.POST, msg, headers);
     } catch (e) {
-      logger.warning('Sending SOAP request failed', e);
-      if (onDisconnect != null) onDisconnect(true);
-      _authenticated = false;
+      logger.warning('Error sending SOAP request.', e);
+      return null;
     }
 
     xml.XmlDocument doc;
     try {
-      doc = xml.parse(respBody);
+      doc = xml.parse(resp.body);
     } catch (e) {
-      logger.warning('Failed to parse results: $respBody', e);
+      logger.warning('Failed to parse results: ${resp.body}', e);
       return null;
     }
 
@@ -458,4 +391,79 @@ class VClient {
         'Headers: $headers');
   }
 
+  Future<ClientResp> _addRequest(Uri uri, reqMethod method,
+      [String msg, Map headers]) {
+    var cr = new ClientReq(uri, method, msg, headers);
+    _queue.add(cr);
+    _sendRequest();
+    return cr.response;
+  }
+
+  bool _reqPending = false;
+  Future _sendRequest() async {
+    if (_reqPending || _queue.isEmpty) return;
+
+    _reqPending = true;
+    ClientReq req = _queue.removeFirst();
+
+    http.Response resp;
+    try {
+      switch (req.method) {
+        case reqMethod.GET:
+          resp = await _client
+              .get(req.url, headers: req.headers)
+              .timeout(_Timeout);
+          break;
+        case reqMethod.POST:
+          resp = await _client
+              .post(req.url, headers: req.headers, body: req.msg)
+              .timeout(_Timeout);
+          break;
+      }
+
+      var headers = req.headers ?? {};
+      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 4) {
+        var auth = _digestAuth(req.url, resp);
+        headers[HttpHeaders.AUTHORIZATION] = auth;
+        if (req.method == reqMethod.GET) {
+          resp = await _client.get(req.url, headers: headers).timeout(_Timeout);
+        } else if (req.method == reqMethod.POST) {
+          resp = await _client
+              .post(req.url, headers: headers, body: req.msg)
+              .timeout(_Timeout);
+        }
+      }
+
+      if (resp.statusCode != HttpStatus.UNAUTHORIZED) _authAttempt = 0;
+      req._comp.complete(new ClientResp(resp.statusCode, resp.body));
+    } catch (e) {
+      _authenticated = false;
+      if (onDisconnect != null) onDisconnect(true);
+      req._comp.completeError(e);
+    } finally {
+      _reqPending = false;
+      _sendRequest();
+    }
+  }
+}
+
+enum reqMethod { GET, POST }
+
+class ClientReq {
+  final Uri url;
+  final String msg;
+  final Map headers;
+  final reqMethod method;
+  Future<ClientResp> get response => _comp.future;
+
+  Completer<ClientResp> _comp;
+  ClientReq(this.url, this.method, [this.msg = null, this.headers = null]) {
+    _comp = new Completer<ClientResp>();
+  }
+}
+
+class ClientResp {
+  final String body;
+  final int status;
+  ClientResp(this.status, this.body);
 }
