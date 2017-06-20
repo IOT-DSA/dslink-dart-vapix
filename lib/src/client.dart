@@ -20,7 +20,8 @@ const Duration _Timeout = const Duration(seconds: 30);
 
 class VClient {
   static final Map<String, VClient> _cache = <String, VClient>{};
-  static final String _paramPath = '/axis-cgi/param.cgi';
+  static const String _paramPath = '/axis-cgi/param.cgi';
+  static const String _imgSizePath = '/axis-cgi/imagesize.cgi';
 
   Uri _rootUri;
   Uri _origUri;
@@ -236,6 +237,40 @@ class VClient {
 
     return res;
   }
+
+  Future<List<CameraResolution>> getResolutions() async {
+    var numCams = int.parse(device.params.numSources);
+
+    var futs = new List<Future>();
+    for (var i = 1; i <= numCams; i++) {
+      var params = {'camera': '$i'};
+      var uri = _rootUri.replace(path: _imgSizePath, queryParameters: params);
+      futs.add(_addRequest(uri, reqMethod.GET).then((ClientResp resp) {
+          int width;
+          int height;
+          var lines = resp.body.split('\n');
+          for (var line in lines) {
+            if (line.contains('width')) {
+              var tmp = line.split('=').map((str) => str.trim()).toList();
+              width = int.parse(tmp[1]);
+            } else if (line.contains('height')) {
+              var tmp = line.split('=').map((str) => str.trim()).toList();
+              height = int.parse(tmp[1]);
+            } else {
+              continue;
+            }
+          }
+          return new CameraResolution(i, width, height);
+        })
+      );
+    }
+
+    return Future.wait(futs);
+  }
+
+  //***************************************
+  //************** SOAP CALLS *************
+  //***************************************
 
   Future<MotionEvents> getEventInstances() async {
     var doc = await _soapRequest(soap.getEventInstances(), soap.headerGEI);

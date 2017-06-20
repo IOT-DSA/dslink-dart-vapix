@@ -8,6 +8,7 @@ import 'common.dart';
 import 'events_node.dart';
 import 'param_value.dart';
 import 'window_commands.dart';
+import 'camera_resolution.dart';
 import '../client.dart';
 import '../models/axis_device.dart';
 
@@ -224,8 +225,28 @@ class DeviceNode extends SimpleNode implements Device {
       _clComp.complete(_cl);
       var dev = _cl.device;
       setDevice(dev);
+
+      _cl.getResolutions().then(_populateResolution);
+
       return dev;
     }).then(_populateNodes);
+  }
+
+  void _populateResolution(List<CameraResolution> resolutions) {
+    var resNode = provider.getOrCreateNode('$path/resolution');
+
+    var refreshNd =
+        provider.getNode('${resNode.path}/${RefreshResolution.pathName}');
+
+    if (refreshNd == null) {
+      provider.addNode('${resNode.path}/${RefreshResolution.pathName}',
+          RefreshResolution.def());
+    }
+
+    for (var res in resolutions) {
+      provider.addNode('${resNode.path}/${res.camera}', 
+        ResolutionNode.def(res));
+    }
   }
 
   void _populateNodes(AxisDevice dev) {

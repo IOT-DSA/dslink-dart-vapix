@@ -11,6 +11,8 @@ class AxisDevice {
 class Parameters {
   Map<String, dynamic> _map = <String, dynamic>{};
 
+  String get numSources => _map['ImageSource']['NbrOfSources'];
+
   Parameters(String str) {
     var lines = str.split('\n');
     for (var s in lines) {
@@ -43,4 +45,12 @@ class Parameters {
   }
 
   Map<String, dynamic> get map => _map;
+}
+
+class CameraResolution {
+  final num width;
+  final num height;
+  final num camera;
+
+  CameraResolution(this.camera, this.width, this.height);
 }

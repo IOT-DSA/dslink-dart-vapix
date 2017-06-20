@@ -7,6 +7,8 @@ main(List<String> args) async {
 
   link = new LinkProvider(args, "Axis-", autoInitialize: false, profiles: {
     NoticeNode.isType: (String path) => new NoticeNode(path, link),
+    ResolutionNode.isType: (String path) => new ResolutionNode(path),
+    RefreshResolution.isType: (String path) => new RefreshResolution(path),
     NotificationNode.isType: (String path) => new NotificationNode(path),
     AddDevice.isType: (String path) => new AddDevice(path, link),
     DeviceNode.isType: (String path) => new DeviceNode(path),
