@@ -3,24 +3,17 @@ import 'dart:async';
 import 'common.dart';
 import '../models/axis_device.dart' show CameraResolution;
 
-
 class ResolutionNode extends ChildNode {
   static const String isType = 'resolutionNode';
   static const String _width = 'width';
   static const String _height = 'height';
 
   static Map<String, dynamic> def(CameraResolution res) => {
-    r'$name': 'Camera ${res.camera}',
-    r'$is': isType,
-    _width: {
-      r'$type': 'num',
-      r'?value': res.width
-    },
-    _height: {
-      r'$type': 'num',
-      r'?value': res.height
-    }
-  };
+        r'$name': 'Camera ${res.camera}',
+        r'$is': isType,
+        _width: {r'$type': 'num', r'?value': res.width},
+        _height: {r'$type': 'num', r'?value': res.height}
+      };
 
   ResolutionNode(String path) : super(path);
 }
@@ -33,16 +26,16 @@ class RefreshResolution extends ChildNode {
   static const String _message = 'message';
 
   static Map<String, dynamic> def() => {
-    r'$is': isType,
-    r'$name': 'Refresh Resolutions',
-    r'$invokable': 'write',
-    r'$result': 'values',
-    r'$params': [],
-    r'$columns': [
-      {'name': _success, 'type': 'bool', 'default': false},
-      {'name': _message, 'type': 'string', 'default': ''}
-    ]
-  };
+        r'$is': isType,
+        r'$name': 'Refresh Resolutions',
+        r'$invokable': 'write',
+        r'$result': 'values',
+        r'$params': [],
+        r'$columns': [
+          {'name': _success, 'type': 'bool', 'default': false},
+          {'name': _message, 'type': 'string', 'default': ''}
+        ]
+      };
 
   RefreshResolution(String path) : super(path);
 
@@ -69,7 +62,7 @@ class RefreshResolution extends ChildNode {
     }
 
     return ret
-        ..[_success] = true
-        ..[_message] = 'Success!';
+      ..[_success] = true
+      ..[_message] = 'Success!';
   }
 }

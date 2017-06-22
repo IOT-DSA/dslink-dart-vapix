@@ -246,23 +246,22 @@ class VClient {
       var params = {'camera': '$i'};
       var uri = _rootUri.replace(path: _imgSizePath, queryParameters: params);
       futs.add(_addRequest(uri, reqMethod.GET).then((ClientResp resp) {
-          int width;
-          int height;
-          var lines = resp.body.split('\n');
-          for (var line in lines) {
-            if (line.contains('width')) {
-              var tmp = line.split('=').map((str) => str.trim()).toList();
-              width = int.parse(tmp[1]);
-            } else if (line.contains('height')) {
-              var tmp = line.split('=').map((str) => str.trim()).toList();
-              height = int.parse(tmp[1]);
-            } else {
-              continue;
-            }
+        int width;
+        int height;
+        var lines = resp.body.split('\n');
+        for (var line in lines) {
+          if (line.contains('width')) {
+            var tmp = line.split('=').map((str) => str.trim()).toList();
+            width = int.parse(tmp[1]);
+          } else if (line.contains('height')) {
+            var tmp = line.split('=').map((str) => str.trim()).toList();
+            height = int.parse(tmp[1]);
+          } else {
+            continue;
           }
-          return new CameraResolution(i, width, height);
-        })
-      );
+        }
+        return new CameraResolution(i, width, height);
+      }));
     }
 
     return Future.wait(futs);
