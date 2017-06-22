@@ -74,12 +74,12 @@ class VClient {
     try {
       resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
-      logger.warning('Failed to authenticate.', e);
+      logger.warning('$_rootUri-- Failed to authenticate.', e);
       return AuthError.server;
     }
 
     if (resp.status == HttpStatus.UNAUTHORIZED) {
-      logger.warning('Unauthorized: UserInfo ${uri.userInfo}');
+      logger.warning('$_rootUri-- Unauthorized: UserInfo ${uri.userInfo}');
       close();
       if (onDisconnect != null) onDisconnect(true);
       return AuthError.auth;
@@ -87,7 +87,7 @@ class VClient {
 
     body = resp.body;
     if (!body.contains('=')) {
-      logger.warning('Error in body: $body');
+      logger.warning('$_rootUri-- Error in body when authenticating: $body');
       return AuthError.other;
     }
 
@@ -181,13 +181,14 @@ class VClient {
     try {
       resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
-      logger.warning('Failed to add motion window.', e);
+      logger.warning('$_rootUri-- Failed to add motion window.', e);
       return null;
     }
 
     String body = resp.body;
     if (resp.status != HttpStatus.OK || body == null || body.isEmpty) {
-      logger.warning('Failed to add motion window. Status: ${resp.status}');
+      logger.warning('$_rootUri-- Failed to add motion window. '
+          'Status: ${resp.status}');
       return null;
     }
 
@@ -205,13 +206,14 @@ class VClient {
     try {
       resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
-      logger.warning('Failed to remove motion', e);
+      logger.warning('$_rootUri-- Failed to remove motion', e);
       return false;
     }
 
     var res = resp.body.trim().toLowerCase() == 'ok';
     if (!res) {
-      logger.warning('Failed to remove motion window: ${resp.body}');
+      logger.warning('$_rootUri-- Failed to remove motion window: '
+          '${resp.body}');
     }
 
     return res;
@@ -225,14 +227,14 @@ class VClient {
     try {
       resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
-      logger.warning('Error modifying parameter: $path', e);
+      logger.warning('$_rootUri-- Error modifying parameter: $path', e);
       return false;
     }
 
     var res = resp.body.trim().toLowerCase() == 'ok';
     if (!res) {
-      logger.warning('Failed to modify parameter "$path" with value: $value\n'
-          'Response was: ${resp.body}');
+      logger.warning('$_rootUri-- Failed to modify parameter "$path" '
+          'with value: $value\nResponse was: ${resp.body}');
     }
 
     return res;
@@ -401,7 +403,7 @@ class VClient {
     try {
       resp = await _addRequest(url, reqMethod.POST, msg, headers);
     } catch (e) {
-      logger.warning('Error sending SOAP request.', e);
+      logger.warning('$_rootUri-- Error sending SOAP request.', e);
       return null;
     }
 
@@ -409,7 +411,7 @@ class VClient {
     try {
       doc = xml.parse(resp.body);
     } catch (e) {
-      logger.warning('Failed to parse results: ${resp.body}', e);
+      logger.warning('$_rootUri-- Failed to parse results: ${resp.body}', e);
       return null;
     }
 
@@ -417,7 +419,7 @@ class VClient {
   }
 
   void _logErr(http.Response resp, String action, String msg, Map headers) {
-    logger.warning('Action Failed: $action\n'
+    logger.warning('$_rootUri-- Action Failed: $action\n'
         'Status code: ${resp.statusCode}\n'
         'Reason: ${resp.reasonPhrase}\n'
         'Body: ${resp.body}\n'
