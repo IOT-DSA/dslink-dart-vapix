@@ -311,6 +311,7 @@ class VClient {
       }
       res.add(config);
     }
+    _configs = res;
     return res;
   }
 
@@ -421,15 +422,6 @@ class VClient {
     }
 
     return doc;
-  }
-
-  void _logErr(http.Response resp, String action, String msg, Map headers) {
-    logger.warning('${_rootUri.host} -- Action Failed: $action\n'
-        'Status code: ${resp.statusCode}\n'
-        'Reason: ${resp.reasonPhrase}\n'
-        'Body: ${resp.body}\n'
-        'Message: $msg\n'
-        'Headers: $headers');
   }
 
   Future<ClientResp> _addRequest(Uri uri, reqMethod method,
