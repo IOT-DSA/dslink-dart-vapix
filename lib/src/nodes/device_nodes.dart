@@ -190,8 +190,9 @@ class DeviceNode extends SimpleNode implements Device {
   Completer<VClient> _clComp;
   AxisDevice _device;
   VClient _cl;
+  final LinkProvider link;
 
-  DeviceNode(String path) : super(path) {
+  DeviceNode(String path, this.link) : super(path) {
     _comp = new Completer<AxisDevice>();
     _clComp = new Completer<VClient>();
   }
@@ -310,6 +311,8 @@ class DeviceNode extends SimpleNode implements Device {
     }
     provider.addNode(
         '${mNode.path}/${AddWindow.pathName}', AddWindow.definition());
+
+    link.save();
   }
 
   Future<AuthError> updateConfig(

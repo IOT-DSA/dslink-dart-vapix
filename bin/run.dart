@@ -11,7 +11,7 @@ main(List<String> args) async {
     RefreshResolution.isType: (String path) => new RefreshResolution(path),
     NotificationNode.isType: (String path) => new NotificationNode(path),
     AddDevice.isType: (String path) => new AddDevice(path, link),
-    DeviceNode.isType: (String path) => new DeviceNode(path),
+    DeviceNode.isType: (String path) => new DeviceNode(path, link),
     ParamsNode.isType: (String path) => new ParamsNode(path),
     ParamValue.isType: (String path) => new ParamValue(path),
     RemoveDevice.isType: (String path) => new RemoveDevice(path, link),
