@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dslink/nodes.dart' show NodeNamer;
+import 'package:dslink/dslink.dart' show LinkProvider;
 
 import 'common.dart';
 import 'param_value.dart';
@@ -69,7 +70,9 @@ class AddWindow extends ChildNode {
     ]
   };
 
-  AddWindow(String path) : super(path);
+  final LinkProvider link;
+
+  AddWindow(String path, this.link) : super(path);
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
@@ -137,7 +140,8 @@ class RemoveWindow extends ChildNode {
     ]
   };
 
-  RemoveWindow(String path) : super(path);
+  final LinkProvider link;
+  RemoveWindow(String path, this.link) : super(path);
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
