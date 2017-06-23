@@ -63,8 +63,8 @@ class VClient {
   }
 
   // Try authenticate and load the parameters for the device.
-  Future<AuthError> authenticate() async {
-    if (_authenticated && device != null) return AuthError.ok;
+  Future<AuthError> authenticate({bool force: false}) async {
+    if (_authenticated && device != null && !force) return AuthError.ok;
 
     var q = {'action': 'list'};
     var uri = _rootUri.replace(path: _paramPath, queryParameters: q);

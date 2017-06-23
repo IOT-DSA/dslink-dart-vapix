@@ -26,6 +26,7 @@ main(List<String> args) async {
     ActionConfigNode.isType: (String path) => new ActionConfigNode(path),
     ReconnectDevice.isType: (String path) => new ReconnectDevice(path),
     RefreshActions.isType: (String path) => new RefreshActions(path),
+    RefreshDevice.isType: (String path) => new RefreshDevice(path),
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link)
   }, defaultNodes: {

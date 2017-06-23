@@ -10,7 +10,7 @@ import 'param_value.dart';
 import 'window_commands.dart';
 import 'camera_resolution.dart';
 import '../client.dart';
-import '../models/axis_device.dart';
+import '../../models.dart';
 
 //* @Action Add_Device
 //* @Is addDeviceAction
@@ -45,21 +45,25 @@ class AddDevice extends SimpleNode {
   static const String _message = 'message';
 
   static Map<String, dynamic> definition() => {
-    r'$is' : isType,
-    r'$name' : 'Add Device',
-    r'$invokable' : 'write',
-    r'$params' : [
-      {'name': _name, 'type': 'string', 'placeholder': 'Device Name'},
-      {'name': _addr, 'type': 'string', 'placeholder': 'http://<ipaddress>'},
-      {'name': _user, 'type': 'string', 'placeholder': 'Username'},
-      {'name': _pass, 'type': 'string', 'editor': 'password'},
-      {'name': _sec, 'type': 'bool', 'default': true}
-    ],
-    r'$columns' : [
-      { 'name' : _success, 'type' : 'bool', 'default' : false },
-      { 'name' : _message, 'type' : 'string', 'default': '' }
-    ]
-  };
+        r'$is': isType,
+        r'$name': 'Add Device',
+        r'$invokable': 'write',
+        r'$params': [
+          {'name': _name, 'type': 'string', 'placeholder': 'Device Name'},
+          {
+            'name': _addr,
+            'type': 'string',
+            'placeholder': 'http://<ipaddress>'
+          },
+          {'name': _user, 'type': 'string', 'placeholder': 'Username'},
+          {'name': _pass, 'type': 'string', 'editor': 'password'},
+          {'name': _sec, 'type': 'bool', 'default': true}
+        ],
+        r'$columns': [
+          {'name': _success, 'type': 'bool', 'default': false},
+          {'name': _message, 'type': 'string', 'default': ''}
+        ]
+      };
 
   LinkProvider _link;
 
@@ -67,7 +71,7 @@ class AddDevice extends SimpleNode {
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
-    final ret = { _success: false, _message: '' };
+    final ret = {_success: false, _message: ''};
 
     if (params[_name] == null || params[_name].isEmpty) {
       return ret..[_message] = 'A name must be specified.';
@@ -92,9 +96,10 @@ class AddDevice extends SimpleNode {
     var cl = new VClient(uri, u, p, s);
     var res = await cl.authenticate();
 
-    switch(res) {
+    switch (res) {
       case AuthError.ok:
-        ret..[_success] = true
+        ret
+          ..[_success] = true
           ..[_message] = 'Success!';
         nd = provider.addNode('/$name', DeviceNode.definition(uri, u, p, s));
         _link.save();
@@ -127,35 +132,37 @@ class AddDevice extends SimpleNode {
 //* specified when being added.
 class DeviceNode extends SimpleNode implements Device {
   static const String isType = 'deviceNode';
-  static Map<String, dynamic>
-  definition(Uri uri, String user, String pass, bool sec) => {
-    r'$is': isType,
-    _uri: uri.toString(),
-    _user: user,
-    _pass: pass,
-    _sec: sec,
-    //* @Node params
-    //* @Parent DeviceNode
-    //*
-    //* Collection of ParamValues on the device. The link will automatically
-    //* create a tree based on the configuration tree of the device.
-    ParamsNode.pathName: ParamsNode.def(),
-    //* @Node mjpgUrl
-    //* @Parent DeviceNode
-    //*
-    //* MJPEG Url of the remote device.
-    //*
-    //* @Value string
-    'mjpgUrl' : {
-      r'$name' : 'MJPEG URL',
-      r'$type' : 'string',
-      r'?value' : '${uri.toString()}/mjpg/video.mjpg',
-    },
-    EventsNode.pathName: EventsNode.definition(),
-    EditDevice.pathName: EditDevice.definition(uri, user, sec),
-    RemoveDevice.pathName: RemoveDevice.definition(),
-    ReconnectDevice.pathName: ReconnectDevice.def()
-  };
+  static Map<String, dynamic> definition(
+          Uri uri, String user, String pass, bool sec) =>
+      {
+        r'$is': isType,
+        _uri: uri.toString(),
+        _user: user,
+        _pass: pass,
+        _sec: sec,
+        //* @Node params
+        //* @Parent DeviceNode
+        //*
+        //* Collection of ParamValues on the device. The link will automatically
+        //* create a tree based on the configuration tree of the device.
+        ParamsNode.pathName: ParamsNode.def(),
+        //* @Node mjpgUrl
+        //* @Parent DeviceNode
+        //*
+        //* MJPEG Url of the remote device.
+        //*
+        //* @Value string
+        'mjpgUrl': {
+          r'$name': 'MJPEG URL',
+          r'$type': 'string',
+          r'?value': '${uri.toString()}/mjpg/video.mjpg',
+        },
+        EventsNode.pathName: EventsNode.definition(),
+        EditDevice.pathName: EditDevice.definition(uri, user, sec),
+        RemoveDevice.pathName: RemoveDevice.definition(),
+        RefreshDevice.pathName: RefreshDevice.def(),
+        ReconnectDevice.pathName: ReconnectDevice.def()
+      };
 
   static const String _user = r'$$ax_user';
   static const String _pass = r'$$password';
@@ -193,14 +200,19 @@ class DeviceNode extends SimpleNode implements Device {
   void onCreated() {
     var nd = provider.getNode('$path/${ReconnectDevice.pathName}');
     if (nd == null) {
-      provider.addNode('$path/${ReconnectDevice.pathName}',
-          ReconnectDevice.def());
+      provider.addNode(
+          '$path/${ReconnectDevice.pathName}', ReconnectDevice.def());
     }
 
     nd = provider.getNode('$path/${ParamsNode.pathName}') as SimpleNode;
     if (nd != null && nd.getConfig(r'$is') != ParamsNode.isType) {
       nd.remove();
       provider.addNode('$path/${ParamsNode.pathName}', ParamsNode.def());
+    }
+
+    nd = provider.getNode('$path/${RefreshDevice.pathName}');
+    if (nd == null) {
+      provider.addNode('$path/${RefreshDevice.pathName}', RefreshDevice.def());
     }
 
     var u = getConfig(_user);
@@ -244,8 +256,8 @@ class DeviceNode extends SimpleNode implements Device {
     }
 
     for (var res in resolutions) {
-      provider.addNode('${resNode.path}/${res.camera}', 
-        ResolutionNode.def(res));
+      provider.addNode(
+          '${resNode.path}/${res.camera}', ResolutionNode.def(res));
     }
   }
 
@@ -271,13 +283,21 @@ class DeviceNode extends SimpleNode implements Device {
     if (dev == null) return;
 
     var p = provider.getNode('$path/${ParamsNode.pathName}');
+    if (p == null) {
+      throw new StateError('Unable to locate parameters node');
+    }
+    var chd = p.children.values.toList();
+    for (var c in chd) {
+      if (c is SimpleNode) c.remove();
+    }
+
     genNodes(dev.params.map, p.path);
     //* @Node Motion
     //* @Parent params
     //*
     //* Collection of Motion detection related parameters.
     var mNode =
-    provider.getOrCreateNode('$path/${ParamsNode.pathName}/$_motion');
+        provider.getOrCreateNode('$path/${ParamsNode.pathName}/$_motion');
     if (mNode == null) return;
 
     //* @Node MotionWindow
@@ -288,11 +308,12 @@ class DeviceNode extends SimpleNode implements Device {
       provider.addNode('${mNode.path}/$p/${RemoveWindow.pathName}',
           RemoveWindow.definition());
     }
-    provider.addNode('${mNode.path}/${AddWindow.pathName}',
-        AddWindow.definition());
+    provider.addNode(
+        '${mNode.path}/${AddWindow.pathName}', AddWindow.definition());
   }
 
-  Future<AuthError> updateConfig(Uri uri, String user, String pass, bool secure) async {
+  Future<AuthError> updateConfig(
+      Uri uri, String user, String pass, bool secure) async {
     if (pass == null || pass.isEmpty) {
       pass = getConfig(_pass);
     }
@@ -323,12 +344,12 @@ class DeviceNode extends SimpleNode implements Device {
         nd.disconnected = null;
       });
     } else {
-      children.values.where((nd) => nd is ChildNode && nd.disconnected == null)
+      children.values
+          .where((nd) => nd is ChildNode && nd.disconnected == null)
           .forEach((nd) {
         (nd as ChildNode).disconnected = ValueUpdate.getTs();
       });
     }
-
   }
 }
 
@@ -361,20 +382,20 @@ class EditDevice extends SimpleNode {
   static const String _message = 'message';
 
   static Map<String, dynamic> definition(Uri uri, String user, bool sec) => {
-    r'$is' : isType,
-    r'$name' : 'Edit Device',
-    r'$invokable' : 'write',
-    r'$params' : [
-      {'name': _addr, 'type': 'string', 'default': uri.toString()},
-      {'name': _user, 'type': 'string', 'placeholder': user},
-      {'name': _pass, 'type': 'string', 'editor': 'password'},
-      {'name': _sec, 'type': 'bool', 'default': sec}
-    ],
-    r'$columns' : [
-      { 'name' : _success, 'type' : 'bool', 'default' : false },
-      { 'name' : _message, 'type' : 'string', 'default': '' }
-    ]
-  };
+        r'$is': isType,
+        r'$name': 'Edit Device',
+        r'$invokable': 'write',
+        r'$params': [
+          {'name': _addr, 'type': 'string', 'default': uri.toString()},
+          {'name': _user, 'type': 'string', 'placeholder': user},
+          {'name': _pass, 'type': 'string', 'editor': 'password'},
+          {'name': _sec, 'type': 'bool', 'default': sec}
+        ],
+        r'$columns': [
+          {'name': _success, 'type': 'bool', 'default': false},
+          {'name': _message, 'type': 'string', 'default': ''}
+        ]
+      };
 
   LinkProvider _link;
 
@@ -382,7 +403,7 @@ class EditDevice extends SimpleNode {
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
-    final ret = { _success: false, _message: '' };
+    final ret = {_success: false, _message: ''};
 
     Uri uri;
     try {
@@ -396,9 +417,10 @@ class EditDevice extends SimpleNode {
     var s = params[_sec];
     var res = await (parent as DeviceNode).updateConfig(uri, u, p, s);
 
-    switch(res) {
+    switch (res) {
       case AuthError.ok:
-        ret..[_success] = true
+        ret
+          ..[_success] = true
           ..[_message] = 'Success!';
         break;
       case AuthError.notFound:
@@ -437,15 +459,15 @@ class RemoveDevice extends SimpleNode {
   static const String _message = 'message';
 
   static Map<String, dynamic> definition() => {
-    r'$is' : isType,
-    r'$name' : 'Remove Device',
-    r'$invokable' : 'write',
-    r'$params' : [],
-    r'$columns' : [
-      { 'name' : _success, 'type' : 'bool', 'default' : false },
-      { 'name' : _message, 'type' : 'string', 'default': '' }
-    ]
-  };
+        r'$is': isType,
+        r'$name': 'Remove Device',
+        r'$invokable': 'write',
+        r'$params': [],
+        r'$columns': [
+          {'name': _success, 'type': 'bool', 'default': false},
+          {'name': _message, 'type': 'string', 'default': ''}
+        ]
+      };
 
   LinkProvider _link;
 
@@ -453,7 +475,7 @@ class RemoveDevice extends SimpleNode {
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
-    final ret = { _success: true, _message: 'Success!' };
+    final ret = {_success: true, _message: 'Success!'};
 
     (parent as DeviceNode)._cl?.close();
     parent.remove();
@@ -468,15 +490,15 @@ class ReconnectDevice extends SimpleNode {
   static const String pathName = 'reconnect';
 
   static Map<String, dynamic> def() => {
-    r'$is': isType,
-    r'$name': 'Reconnect Device',
-    r'$invokable': 'write',
-    r'$params': [],
-    r'$columns': [
-      {'name': _success, 'type': 'bool', 'default': false},
-      {'name': _message, 'type': 'string', 'default': ''}
-    ]
-  };
+        r'$is': isType,
+        r'$name': 'Reconnect Device',
+        r'$invokable': 'write',
+        r'$params': [],
+        r'$columns': [
+          {'name': _success, 'type': 'bool', 'default': false},
+          {'name': _message, 'type': 'string', 'default': ''}
+        ]
+      };
 
   static const String _success = 'success';
   static const String _message = 'message';
@@ -488,14 +510,70 @@ class ReconnectDevice extends SimpleNode {
     var ret = {_success: false, _message: ''};
 
     var res = await (parent as DeviceNode).reconnect();
-    switch(res) {
+    switch (res) {
       case AuthError.ok:
         ret[_success] = true;
         break;
       default:
-        ret..[_success] = false
-            ..[_message] = 'Error authenticating';
+        ret
+          ..[_success] = false
+          ..[_message] = 'Error authenticating';
     }
+
+    return ret;
+  }
+}
+
+class RefreshDevice extends SimpleNode {
+  static const String isType = 'refreshDevice';
+  static const String pathName = 'Refresh_Device';
+
+  static const String _success = 'success';
+  static const String _message = 'message';
+
+  static Map<String, dynamic> def() => {
+        r'$is': isType,
+        r'$name': 'Refresh Device',
+        r'$invokable': 'write',
+        r'$params': [],
+        r'$columns': [
+          {'name': _success, 'type': 'bool', 'default': false},
+          {'name': _message, 'type': 'string', 'default': ''}
+        ]
+      };
+
+  RefreshDevice(String path) : super(path);
+
+  @override
+  Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
+    final ret = {_success: true, _message: 'Success!'};
+
+    var p = parent as DeviceNode;
+    var cl = p._cl;
+    if (cl == null) cl = await p.client;
+
+    var futs = [];
+    var eventsNd =
+        provider.getNode('${p.path}/${EventsNode.pathName}') as EventsNode;
+
+    if (eventsNd == null) {
+      return ret..[_message] = 'Unable to locate events node';
+    }
+
+    futs.add(eventsNd.updateEvents());
+    futs.add(cl.authenticate(force: true).then((AuthError auth) {
+      if (auth != AuthError.ok) {
+        ret
+          ..[_message] = 'Failed to authenticate'
+          ..[_success] = false;
+        return;
+      }
+
+      var dev = cl.device;
+      p._populateNodes(dev);
+    }));
+
+    await Future.wait(futs);
 
     return ret;
   }

@@ -16,12 +16,12 @@ import '../soap_message.dart' as soap;
 class EventsNode extends ChildNode implements Events {
   static const String isType = 'eventsNode';
   static const String pathName = 'events';
-  static const String _instances = 'instances';
-  static const String _source = 'sources';
+  static const String instances = 'instances';
+  static const String sources = 'sources';
   static const String _data = 'data';
   static const String _alarms = 'alarms';
-  static const String _rules = 'rules';
-  static const String _actions = 'actions';
+  static const String rulesNd = 'rules';
+  static const String actionsNd = 'actions';
 
   static Map<String, dynamic> definition() => {
     r'$is': isType,
@@ -32,12 +32,12 @@ class EventsNode extends ChildNode implements Events {
     //*
     //* event instances are the monitored areas that generate the alarms. Eg:
     //* a motion detection window.
-    _instances: {
+    instances: {
       //* @Node sources
       //* @Parent instances
       //*
       //* Motion detection windows as identified by the event system.
-      _source: {},
+      sources: {},
       //* @Node data
       //* @Parent instances
       //*
@@ -55,7 +55,7 @@ class EventsNode extends ChildNode implements Events {
       //*
       //* Collection of rules that define when an action should be triggered.
       RefreshActions.pathName: RefreshActions.definition(),
-      _rules: {
+      rulesNd: {
         AddActionRule.pathName: AddActionRule.definition()
       },
       //* @Node actions
@@ -63,7 +63,7 @@ class EventsNode extends ChildNode implements Events {
       //*
       //* Collection of actions that define what happen when an event is
       //* triggered.
-      _actions: {
+      actionsNd: {
         AddActionConfig.pathName: AddActionConfig.definition()
       }
     }
@@ -96,27 +96,57 @@ class EventsNode extends ChildNode implements Events {
   }
 
   void _addInstances(MotionEvents events) {
+    var instNd = provider.getNode('$path/$instances/$sources');
+    if (instNd == null) {
+      throw new StateError('Unable to locate instances node');
+    }
+
+    var chd = instNd.children.values.toList();
+    for (var c in chd) {
+      if (c is EventSourceNode) c.remove();
+    }
+
     if (events == null) return;
     for(var src in events.sources) {
-      provider.addNode('$path/$_instances/$_source/${src.value}',
+      provider.addNode('$path/$instances/$sources/${src.value}',
           EventSourceNode.definition(src));
     }
   }
 
   void _addActionRules(List<ActionRule> rules) {
+    var arNd = provider.getNode('$path/$_alarms/$rulesNd');
+    if (arNd == null) {
+      throw new StateError('Unable to locate rules node');
+    }
+
+    var chd = arNd.children.values.toList();
+    for (var c in chd) {
+      if (c is ActionRuleNode) c.remove();
+    }
+
     if (rules == null) return;
 
     for(var rule in rules) {
-      provider.addNode('$path/$_alarms/$_rules/${rule.id}',
+      provider.addNode('$path/$_alarms/$rulesNd/${rule.id}',
           ActionRuleNode.definition(rule));
     }
   }
 
   void _addActionConfigs(List<ActionConfig> configs) {
+    var acNd = provider.getNode('$path/$_alarms/$actionsNd');
+    if (acNd == null) {
+      throw new StateError('Unable to locate config node');
+    }
+
+    var chd = acNd.children.values.toList();
+    for (var c in chd) {
+      if (c is ActionConfigNode) c.remove();
+    }
+
     if (configs == null) return;
 
     for(var config in configs) {
-      provider.addNode('$path/$_alarms/$_actions/${config.id}',
+      provider.addNode('$path/$_alarms/$actionsNd/${config.id}',
           ActionConfigNode.definition(config));
     }
   }
@@ -713,7 +743,7 @@ class RefreshActions extends ChildNode {
     if (configs == null) return;
 
     var nd = provider.getNode('${parent.path}/$_actions');
-    var list = nd?.children.values.toList();
+    var list = nd?.children?.values?.toList();
     if (list != null) {
       for (var c in list) {
         if (c is ActionConfigNode) c.remove();
