@@ -11,12 +11,12 @@ main(List<String> args) async {
     RefreshResolution.isType: (String path) => new RefreshResolution(path),
     NotificationNode.isType: (String path) => new NotificationNode(path),
     AddDevice.isType: (String path) => new AddDevice(path, link),
-    DeviceNode.isType: (String path) => new DeviceNode(path),
+    DeviceNode.isType: (String path) => new DeviceNode(path, link),
     ParamsNode.isType: (String path) => new ParamsNode(path),
     ParamValue.isType: (String path) => new ParamValue(path),
     RemoveDevice.isType: (String path) => new RemoveDevice(path, link),
-    AddWindow.isType: (String path) => new AddWindow(path),
-    RemoveWindow.isType: (String path) => new RemoveWindow(path),
+    AddWindow.isType: (String path) => new AddWindow(path, link),
+    RemoveWindow.isType: (String path) => new RemoveWindow(path, link),
     EventsNode.isType: (String path) => new EventsNode(path),
     EventSourceNode.isType: (String path) => new EventSourceNode(path),
     AddActionRule.isType: (String path) => new AddActionRule(path, link),
@@ -26,6 +26,7 @@ main(List<String> args) async {
     ActionConfigNode.isType: (String path) => new ActionConfigNode(path),
     ReconnectDevice.isType: (String path) => new ReconnectDevice(path),
     RefreshActions.isType: (String path) => new RefreshActions(path),
+    RefreshDevice.isType: (String path) => new RefreshDevice(path),
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link)
   }, defaultNodes: {
