@@ -11,6 +11,7 @@ import 'package:crypto/crypto.dart' show md5, MD5, Digest;
 import 'soap_message.dart' as soap;
 import 'models/axis_device.dart';
 import 'models/events_alerts.dart';
+import 'models/ptz_commands.dart';
 
 enum AuthError { ok, auth, notFound, server, other }
 
@@ -22,6 +23,7 @@ class VClient {
   static final Map<String, VClient> _cache = <String, VClient>{};
   static const String _paramPath = '/axis-cgi/param.cgi';
   static const String _imgSizePath = '/axis-cgi/imagesize.cgi';
+  static const String _ptzPath = '/axis-cgi/com/ptz.cgi';
 
   Uri _rootUri;
   Uri _origUri;
@@ -34,6 +36,11 @@ class VClient {
 
   List<ActionConfig> _configs = new List<ActionConfig>();
   List<ActionRule> _rules = new List<ActionRule>();
+
+  // populated lazilly
+  // see getPTZCommands
+  List<PTZCameraCommands> _ptzCommands;
+  
   MotionEvents _motionEvents;
 
   List<ActionConfig> getConfigs() => _configs;
@@ -164,6 +171,116 @@ class VClient {
   void close() {
     _client?.close();
     _cache.remove('$_user@$_origUri');
+  }
+
+  bool supportsPTZ() {
+    if (device == null) {
+      throw new StateError("supportsPTZ called before device initialized");
+    }
+
+    return device.params.map["Properties"]["PTZ"]["PTZ"] == "yes";
+  }
+
+  Future<List<PTZCameraCommands>> getPTZCommands() async {
+    // use cache if available
+    if (_ptzCommands != null) {
+      return _ptzCommands;
+    }
+
+    if (!supportsPTZ()) {
+      return const [];
+    }
+
+    var numCams = int.parse(device.params.numSources);
+
+    var futures = new List<Future<PTZCameraCommands>>();
+    for (var i = 1; i <= numCams; i++) {
+      final Map<String, String> map = {
+        'info': '1',
+        'camera': i.toString()
+      }; 
+
+      var uri = _rootUri.replace(path: _ptzPath, queryParameters: map);
+    
+      try {
+        futures.add(_addRequest(uri, reqMethod.GET).then((ClientResp resp) {
+          var lines = resp.body.split("\n");
+          bool start = false;
+
+          List<PTZCommand> commands = [];
+          List<String> queue = [];
+
+          void flushQueue() {
+            if (queue.isEmpty) {
+              return;
+            }
+
+            PTZCommand command = new PTZCommand.fromStrings(queue);
+            if (command != null) {
+              commands.add(command);
+            }
+
+            queue.clear();
+          }
+
+          for (String line in lines) {
+            if (line.startsWith("whoami")) {
+              start = true;
+              continue;
+            }
+
+            if (!start) {
+              continue;
+            }
+
+            // if subcommand or queue is empty, add to queue and continue
+            if (line.startsWith(" ") || line.startsWith("\t") || queue.isEmpty) {
+              queue.add(line);
+              continue;
+            }
+
+            // flush queue, then start anew
+            flushQueue();
+
+            if (line.isNotEmpty) {
+              queue.add(line);
+            }
+          }
+
+          // make sure last command is added
+          flushQueue();
+          
+          return new PTZCameraCommands(commands, i);
+        }));
+      } catch (e) {
+        logger.warning('${_rootUri.host}-- Failed to check for PTZ commands on camera $i.', e);
+      }
+    }
+
+    return await Future.wait(futures);
+  }
+
+  Future<bool> runPtzCommand(int cameraId, Map<String, dynamic> params) async {
+    params.forEach((key, val) {
+      if (val is List) {
+        params[key] = val.join(",");
+      }
+
+      params[key] = val.toString();
+    });
+
+    params["camera"] = cameraId.toString();
+
+    var uri = _rootUri.replace(path: _ptzPath, queryParameters: params);
+    ClientResp resp;
+    try {
+      resp = await _addRequest(uri, reqMethod.GET);
+    } catch (e) {
+      logger.warning('${_rootUri.host}-- Failed to execute PTZ command.', e);
+      return null;
+    }
+
+    return resp.status == HttpStatus.OK;
   }
 
   Future<String> addMotion(Map params) async {

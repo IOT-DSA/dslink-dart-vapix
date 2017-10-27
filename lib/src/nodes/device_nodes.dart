@@ -9,6 +9,7 @@ import 'events_node.dart';
 import 'param_value.dart';
 import 'window_commands.dart';
 import 'camera_resolution.dart';
+import 'ptz_command_node.dart';
 import '../client.dart';
 import '../../models.dart';
 
@@ -241,6 +242,10 @@ class DeviceNode extends SimpleNode implements Device {
 
       _cl.getResolutions().then(_populateResolution);
 
+      if (_cl.supportsPTZ()) {
+        _cl.getPTZCommands().then(_populatePTZNodes);
+      }
+
       return dev;
     }).then(_populateNodes);
   }
@@ -259,6 +264,18 @@ class DeviceNode extends SimpleNode implements Device {
     for (var res in resolutions) {
       provider.addNode(
           '${resNode.path}/${res.camera}', ResolutionNode.def(res));
+    }
+  }
+
+  void _populatePTZNodes(List<PTZCameraCommands> commandsList) {
+    var ptzNode = provider.getOrCreateNode('$path/ptz');
+
+    for (PTZCameraCommands commands in commandsList) {
+      var cameraNode = provider.getNode('${ptzNode.path}/${commands.camera}');
+
+      if (cameraNode == null) {
+        provider.addNode("${ptzNode.path}/${commands.camera}", PTZCommandNode.defFactory(commands));
+      }
     }
   }
 
