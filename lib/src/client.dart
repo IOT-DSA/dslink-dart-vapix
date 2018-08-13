@@ -9,9 +9,7 @@ import 'package:xml/xml.dart' as xml;
 import 'package:crypto/crypto.dart' show md5, MD5, Digest;
 
 import 'soap_message.dart' as soap;
-import 'models/axis_device.dart';
-import 'models/events_alerts.dart';
-import 'models/ptz_commands.dart';
+import '../models.dart';
 
 enum AuthError { ok, auth, notFound, server, other }
 
@@ -24,6 +22,7 @@ class VClient {
   static const String _paramPath = '/axis-cgi/param.cgi';
   static const String _imgSizePath = '/axis-cgi/imagesize.cgi';
   static const String _ptzPath = '/axis-cgi/com/ptz.cgi';
+  static const String _ledsPath = '/axis-cgi/ledcontrol/getleds.cgi';
 
   Uri _rootUri;
   Uri _origUri;
@@ -406,8 +405,59 @@ class VClient {
     return me;
   }
 
+  Future<List<Led>> getLeds() async {
+    final query = <String,String>{
+      'schemaversion': '1'
+    };
+    var uri = _rootUri.replace(path: _ledsPath, queryParameters: query);
+    var res = await _addRequest(uri, reqMethod.GET);
+
+    xml.XmlDocument doc;
+    try {
+      doc = xml.parse(res.body);
+    } catch (e) {
+      logger.warning(
+          '${_rootUri.host} -- Failed to parse results: '
+              '${res.body}',
+          e);
+      return null;
+    }
+
+    if (doc == null) return null;
+    var els = doc.findAllElements('LedCapabilities');
+
+    var list = new List<Led>();
+
+    if (els == null) return list;
+    for (var el in els) {
+      list.add(new Led.fromXml(el));
+    }
+
+    return list;
+  }
+
+  Future<Iterable<xml.XmlElement>> getActionTemplates() async {
+    print('Getting Templates.');
+    var doc = await _soapRequest(soap.getActionTemplates(), soap.headerGAT);
+    
+    if (doc == null) return [];
+    
+    return doc.findAllElements('aa:ActionTemplate');
+  }
+
+  Future<bool> hasLedControls() async {
+    var templates = await getActionTemplates();
+
+    for (var t in templates) {
+      var token = t.findElements('aa:TemplateToken')?.first;
+      if (token == null) continue;
+      if (token.text == 'com.axis.action.unlimited.ledcontrol') return true;
+    }
+
+    return false;
+  }
+
   Future<List<ActionConfig>> getActionConfigs() async {
-    print('Getting Configs');
     var doc = await _soapRequest(soap.getActionConfigs(), soap.headerGAC);
 
     if (doc == null) return null;

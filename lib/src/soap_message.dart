@@ -1,5 +1,8 @@
 import 'models/events_alerts.dart';
 
+/// Header SOAPAction for Get Action Templates
+const String headerGAT =
+    r'http://www.axis.com/vapix/ws/action1/GetActionTemplates';
 /// Header SOAPAction for Get Action Rules
 const String headerGAR =
     r'http://www.axis.com/vapix/ws/action1/GetActionRules';
@@ -21,11 +24,19 @@ const String headerAAC =
 /// Header SOAPAction for Get Event Instances
 const String headerGEI =
     r'http://www.axis.com/vapix/ws/event1/GetEventInstances';
+/// Header SOAPAction for Get Light Service Capabilities
+const String headerGSC =
+    r'http://www.axis.com/vapix/ws/light/GetServiceCapabilities';
+/// Header SOAPAction for Get Light Information
+const String headerGLI =
+    r'http://www.axis.com/vapix/ws/light/GetLightInformation';
 
-const String _event1 = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
-const String _eventNoNS = r'xmlns="http://www.axis.com/vapix/ws/event1"';
 const String _action1 = r'xmlns:aa="http://www.axis.com/vapix/ws/action1"';
 const String _actionNoNS = r'xmlns="http://www.axis.com/vapix/ws/action1"';
+const String _event1 = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
+const String _eventNoNS = r'xmlns="http://www.axis.com/vapix/ws/event1"';
+const String _light = r'xmlns:ali="http://www.axis.com/vapix/ws/light"';
+const String _lightNoNs = r'xmlns="http://www.axis.com/vapix/ws/light"';
 
 /// Used for ActionRules for conditions, specifies motion detection
 String motion() => r'tns1:VideoAnalytics/tnsaxis:MotionDetection';
@@ -43,6 +54,10 @@ String header(String template, String request) =>
   </soap:Body>
 </soap:Envelope>
 ''';
+
+/// Generate SOAP Envelope to Get Action Templates
+String getActionTemplates() => header(_action1,
+  '<aa:GetActionTemplates $_actionNoNS></aa:GetActionTemplates>');
 
 /// Generate SOAP Envelope to Get Event Instances
 String getEventInstances() => header(_event1,
@@ -118,3 +133,11 @@ String addActionRule(ActionRule ar, ActionConfig ac) {
 
   return header(_action1, body);
 }
+
+/// Generate SOAP Envelope to Get Light Service Capabilities
+String getServiceCapabilities() => header(_light,
+    '<ali:GetServiceCapabilities $_lightNoNs></ali:GetServiceCapabilities>');
+
+/// Generate SOAP Envelope to Get Light Information
+String getLightInformation() => header(_light,
+    '<ali:GetLightInformation $_lightNoNs></ali:GetLightInformation>');
