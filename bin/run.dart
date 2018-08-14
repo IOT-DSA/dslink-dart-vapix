@@ -29,7 +29,8 @@ main(List<String> args) async {
     RefreshActions.isType: (String path) => new RefreshActions(path),
     RefreshDevice.isType: (String path) => new RefreshDevice(path),
     RemoveActionConfig.isType: (String path) =>
-        new RemoveActionConfig(path, link)
+        new RemoveActionConfig(path, link),
+    SetLed.isType: (String path) => new SetLed(path)
   }, defaultNodes: {
     NoticeNode.pathName: NoticeNode.definition(),
     AddDevice.pathName: AddDevice.definition()

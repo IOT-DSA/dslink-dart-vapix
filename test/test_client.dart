@@ -16,16 +16,16 @@ Future<Null> main() async {
   var cl = new http.Client();
 
   _user = 'root';
-  _pass = 'root';
+  _pass = 'Dg!ux1234';
 
-  var rootUri = Uri.parse('http://192.168.1.6/vapix/services');
+  var rootUri = Uri.parse('http://10.54.80.155/vapix/services');
 
   var headers = <String, String>{
     'Content-Type': 'text/xml;charset=UTF-8',
-    'SOAPAction': soap.headerGAR
+    'SOAPAction': soap.headerGAT
   };
 
-  var msg = soap.getActionRules();
+  var msg = soap.getActionTemplates();
   var res = await cl.post(rootUri, headers: headers, body: msg);
 
   while (res.statusCode == HttpStatus.UNAUTHORIZED) {

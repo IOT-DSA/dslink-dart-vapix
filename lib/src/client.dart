@@ -457,6 +457,23 @@ class VClient {
     return false;
   }
 
+  Future<String> setLedColor(String name, String ledName, String color, int interval) async {
+    var ac = new ActionConfig(name, null, 'com.axis.action.unlimited.ledcontrol');
+    ac.params..add(new ConfigParams('led', ledName))
+        ..add(new ConfigParams('color', color))
+        ..add(new ConfigParams('interval', '$interval'));
+
+    var doc = await _soapRequest(soap.addActionConfig(ac), soap.headerAAC);
+    print(doc.toString());
+
+    if (doc == null) return null;
+    var el = doc.findAllElements('aa:ConfigurationID')?.first;
+    if (el == null) return null;
+    ac.id = el.text;
+    _configs.add(ac);
+    return el.text;
+  }
+
   Future<List<ActionConfig>> getActionConfigs() async {
     var doc = await _soapRequest(soap.getActionConfigs(), soap.headerGAC);
 
