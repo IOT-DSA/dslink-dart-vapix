@@ -407,19 +407,21 @@ class VClient {
       rethrow;
     }
 
-    var err = doc.findAllElements('GeneralError')?.first;
-    if (err != null) {
+    var errs = doc.findAllElements('GeneralError');
+    if (errs != null && errs.isNotEmpty) {
+      var err = errs.first;
       var errCode = err.findElements('ErrorCode')?.first?.text;
       var errDesc = err.findElements('ErrorDescription')?.first?.text;
       throw new Exception('$errCode - $errDesc');
     }
 
-    var stateChange = doc.findAllElements('StateChanged')?.first;
-    if (stateChange == null) {
+    var states = doc.findAllElements('StateChanged');
+    if (states == null || states.isEmpty) {
       throw new StateError('Response did not contain StateChange or error');
     }
 
-    return stateChange.text.toLowerCase() == 'true';
+    var stateChange = states.first;
+    return stateChange.text.trim().toLowerCase() == 'true';
   }
 
   //***************************************
