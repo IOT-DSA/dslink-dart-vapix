@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'common.dart';
+import 'events_node.dart' show ActionConfigNode;
 import '../models/device_leds.dart';
 import '../models/events_alerts.dart';
 
@@ -72,6 +73,22 @@ class SetLed extends ChildNode {
 
     var cl = await getClient();
     var res = await cl.setLedColor(ac);
-    // TODO: Add action config if I get success?
+    if (res == null || res.isEmpty) {
+      return ret..[_success] = false;
+    }
+    ac.id = res;
+
+    // Add to tree
+    var dev = parent;
+    while (dev != null && dev is! Device) {
+      dev = dev.parent;
+    }
+
+    if (dev != null) {
+      provider.addNode('${dev.path}/events/alarms/actions/$res',
+          ActionConfigNode.definition(ac));
+    }
+
+    return ret..[_success] = true;
   }
 }

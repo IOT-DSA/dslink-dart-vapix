@@ -21,6 +21,7 @@ main(List<String> args) async {
     EventsNode.isType: (String path) => new EventsNode(path),
     EventSourceNode.isType: (String path) => new EventSourceNode(path),
     AddActionRule.isType: (String path) => new AddActionRule(path, link),
+    AddVirtualRule.isType: (String path) => new AddVirtualRule(path, link),
     ActionRuleNode.isType: (String path) => new ActionRuleNode(path),
     RemoveActionRule.isType: (String path) => new RemoveActionRule(path, link),
     AddActionConfig.isType: (String path) => new AddActionConfig(path, link),

@@ -582,12 +582,32 @@ class VClient {
     return res;
   }
 
-  Future<String> addActionRule(ActionRule ar, ActionConfig ac) async {
-    var doc = await _soapRequest(soap.addActionRule(ar, ac), soap.headerAAR);
-
+  Future<String> addActionRule(ActionRule ar, ActionConfig ac, [bool virt = false]) async {
+    xml.XmlDocument doc;
+    print('Soap data\n${soap.addVirtualActionRule(ar, ac)}');
+    if (virt) {
+      doc = await _soapRequest(soap.addVirtualActionRule(ar, ac), soap.headerAAR);
+    } else {
+      doc = await _soapRequest(soap.addActionRule(ar, ac), soap.headerAAR);
+    }
     if (doc == null) return null;
-    var el = doc.findAllElements('aa:RuleID')?.first;
-    if (el == null) return null;
+
+    var fault = doc.findAllElements('SOAP-ENV:Fault');
+    if (fault != null && fault.isNotEmpty) {
+      var err = fault.first.findAllElements('SOAP-ENV:Text');
+      if (err != null && err.isNotEmpty) {
+        var msg = err.first.text;
+        logger.info('Add ActionRule failed:\n${doc.toString()}');
+        throw new Exception('Remote server error: $msg');
+      }
+    }
+
+    var ruleIds = doc.findAllElements('aa:RuleID');
+    if (ruleIds == null || ruleIds.isEmpty) {
+      logger.info('No ruleID found. Failed to add? Data:\n${doc.toString()}');
+      return null;
+    }
+    var el = ruleIds.first;
     ar.id = el.text;
     _rules.add(ar);
     return el.text;

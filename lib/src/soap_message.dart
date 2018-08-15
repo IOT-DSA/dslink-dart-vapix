@@ -45,6 +45,11 @@ String motion() => r'tns1:VideoAnalytics/tnsaxis:MotionDetection';
 String condition(String windowId) => 'boolean(//SimpleItem[@Name="window" and '
     '@Value="$windowId"]) and boolean(//SimpleItem[@Name="motion" and '
     '@Value="1"])';
+/// Used for ActionRules for conditions, specifies Virtual Input trigger
+String virtualInput() => r'tns1:Device/tnsaxis:IO/tnsaxis:VirtualInput';
+/// Used for ActionRules for conditions, specifies which port number is activated
+String viCondition(String port) => 'boolean(//SimpleItem[@Name="port" and '
+    '@Value="$port"]) and boolean(//SimpleItem[@Name="active" and @Value="1"])';
 
 String header(String template, String request) =>
     '''<?xml version="1.0" encoding="utf-8"?>
@@ -132,6 +137,26 @@ String addActionRule(ActionRule ar, ActionConfig ac) {
     </aa:AddActionRule>''';
 
   return header(_action1, body);
+}
+
+String addVirtualActionRule(ActionRule ar, ActionConfig ac) {
+  var body = '''<aa:AddActionRule $_actionNoNS>
+    <NewActionRule>
+      <Name>${ar.name}</Name>
+      <Enabled>${ar.enabled}</Enabled>
+      <Conditions>\n''';
+      for (var c in ar.conditions) {
+        body += '<Condition>\n';
+        body += '        <wsnt:TopicExpression Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">${c.topic}</wsnt:TopicExpression>\n';
+        body += '          <wsnt:MessageContent Dialect="http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter">${c.message}</wsnt:MessageContent>\n';
+        body += '</Condition>\n';
+      }
+      body += '''</Conditions>
+      <PrimaryAction>${ar.primaryAction}</PrimaryAction>
+    </NewActionRule>
+  </aa:AddActionRule>''';
+
+      return header(_action1, body);
 }
 
 /// Generate SOAP Envelope to Get Light Service Capabilities
