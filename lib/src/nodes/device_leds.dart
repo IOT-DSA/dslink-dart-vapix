@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'common.dart';
 import '../models/device_leds.dart';
+import '../models/events_alerts.dart';
 
 class SetLed extends ChildNode {
   static const String isType = 'setLed';
@@ -64,9 +65,13 @@ class SetLed extends ChildNode {
     }
 
     int interval = (params[_interval] as num)?.toInt() ?? 0;
+    var ac = new ActionConfig(name, null, 'com.axis.action.unlimited.ledcontrol');
+    ac.params..add(new ConfigParams('led', _led))
+      ..add(new ConfigParams('color', color))
+      ..add(new ConfigParams('interval', '$interval'));
 
     var cl = await getClient();
-    var res = await cl.setLedColor(name, _led, color, interval);
+    var res = await cl.setLedColor(ac);
     // TODO: Add action config if I get success?
   }
 }

@@ -30,7 +30,8 @@ main(List<String> args) async {
     RefreshDevice.isType: (String path) => new RefreshDevice(path),
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link),
-    SetLed.isType: (String path) => new SetLed(path)
+    SetLed.isType: (String path) => new SetLed(path),
+    VirtualPortTrigger.isType: (String path) => new VirtualPortTrigger(path)
   }, defaultNodes: {
     NoticeNode.pathName: NoticeNode.definition(),
     AddDevice.pathName: AddDevice.definition()

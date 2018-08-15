@@ -6,3 +6,4 @@ export 'src/nodes/notices_node.dart';
 export 'src/nodes/camera_resolution.dart';
 export 'src/nodes/ptz_command_node.dart';
 export 'src/nodes/device_leds.dart';
+export 'src/nodes/virtual_ports.dart';

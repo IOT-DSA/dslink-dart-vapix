@@ -23,6 +23,8 @@ class VClient {
   static const String _imgSizePath = '/axis-cgi/imagesize.cgi';
   static const String _ptzPath = '/axis-cgi/com/ptz.cgi';
   static const String _ledsPath = '/axis-cgi/ledcontrol/getleds.cgi';
+  static const String _viActive = '/axis-cgi/virtualinput/activate.cgi';
+  static const String _viDeactive = '/axis-cgi/virtualinput/deactivate.cgi';
 
   Uri _rootUri;
   Uri _origUri;
@@ -387,6 +389,39 @@ class VClient {
     return Future.wait(futs);
   }
 
+  Future<bool> setVirtualPort(int port, bool active) async {
+    final Map<String, String> params = {
+      'schemaversion': '1',
+      'port': '$port'
+    };
+
+    var p = active ? _viActive : _viDeactive;
+    var uri = _rootUri.replace(path: p, queryParameters: params);
+
+    xml.XmlDocument doc;
+    try {
+      var resp = await _addRequest(uri, reqMethod.GET);
+      doc = xml.parse(resp.body);
+    } catch (e) {
+      logger.warning('${_rootUri.host} -- Error requesting virtual input', e);
+      rethrow;
+    }
+
+    var err = doc.findAllElements('GeneralError')?.first;
+    if (err != null) {
+      var errCode = err.findElements('ErrorCode')?.first?.text;
+      var errDesc = err.findElements('ErrorDescription')?.first?.text;
+      throw new Exception('$errCode - $errDesc');
+    }
+
+    var stateChange = doc.findAllElements('StateChanged')?.first;
+    if (stateChange == null) {
+      throw new StateError('Response did not contain StateChange or error');
+    }
+
+    return stateChange.text.toLowerCase() == 'true';
+  }
+
   //***************************************
   //************** SOAP CALLS *************
   //***************************************
@@ -425,7 +460,6 @@ class VClient {
 
     if (doc == null) return null;
     var els = doc.findAllElements('LedCapabilities');
-
     var list = new List<Led>();
 
     if (els == null) return list;
@@ -437,7 +471,6 @@ class VClient {
   }
 
   Future<Iterable<xml.XmlElement>> getActionTemplates() async {
-    print('Getting Templates.');
     var doc = await _soapRequest(soap.getActionTemplates(), soap.headerGAT);
     
     if (doc == null) return [];
@@ -457,14 +490,8 @@ class VClient {
     return false;
   }
 
-  Future<String> setLedColor(String name, String ledName, String color, int interval) async {
-    var ac = new ActionConfig(name, null, 'com.axis.action.unlimited.ledcontrol');
-    ac.params..add(new ConfigParams('led', ledName))
-        ..add(new ConfigParams('color', color))
-        ..add(new ConfigParams('interval', '$interval'));
-
+  Future<String> setLedColor(ActionConfig ac) async {
     var doc = await _soapRequest(soap.addActionConfig(ac), soap.headerAAC);
-    print(doc.toString());
 
     if (doc == null) return null;
     var el = doc.findAllElements('aa:ConfigurationID')?.first;

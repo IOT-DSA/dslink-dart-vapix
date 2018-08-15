@@ -11,6 +11,7 @@ import 'window_commands.dart';
 import 'camera_resolution.dart';
 import 'ptz_command_node.dart';
 import 'device_leds.dart';
+import 'virtual_ports.dart';
 import '../client.dart';
 import '../../models.dart';
 
@@ -163,7 +164,8 @@ class DeviceNode extends SimpleNode implements Device {
         EditDevice.pathName: EditDevice.definition(uri, user, sec),
         RemoveDevice.pathName: RemoveDevice.definition(),
         RefreshDevice.pathName: RefreshDevice.def(),
-        ReconnectDevice.pathName: ReconnectDevice.def()
+        ReconnectDevice.pathName: ReconnectDevice.def(),
+        VirtualPortTrigger.pathName: VirtualPortTrigger.def()
       };
 
   static const String _user = r'$$ax_user';
@@ -217,6 +219,12 @@ class DeviceNode extends SimpleNode implements Device {
     nd = provider.getNode('$path/${RefreshDevice.pathName}');
     if (nd == null) {
       provider.addNode('$path/${RefreshDevice.pathName}', RefreshDevice.def());
+    }
+
+    nd = provider.getNode('$path/${VirtualPortTrigger.pathName}');
+    if (nd == null) {
+      provider.addNode('$path/${VirtualPortTrigger.pathName}',
+          VirtualPortTrigger.def());
     }
 
     var u = getConfig(_user);
