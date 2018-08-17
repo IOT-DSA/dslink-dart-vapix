@@ -56,7 +56,8 @@ class EventsNode extends ChildNode implements Events {
       //* Collection of rules that define when an action should be triggered.
       RefreshActions.pathName: RefreshActions.definition(),
       rulesNd: {
-        AddActionRule.pathName: AddActionRule.definition()
+        AddActionRule.pathName: AddActionRule.definition(),
+        AddVirtualRule.pathName: AddVirtualRule.def()
       },
       //* @Node actions
       //* @Parent alarms
@@ -77,6 +78,13 @@ class EventsNode extends ChildNode implements Events {
       provider.addNode('$path/$_alarms/${RefreshActions.pathName}',
           RefreshActions.definition());
     }
+
+    nd = provider.getNode('$path/$_alarms/$rulesNd/${AddVirtualRule.pathName}');
+    if (nd == null) {
+      provider.addNode('$path/$_alarms/$rulesNd/${AddVirtualRule.pathName}',
+          AddVirtualRule.def());
+    }
+
     getClient().then((cl) {
       cl.getEventInstances().then(_addInstances);
       cl.getActionRules().then(_addActionRules);
@@ -319,6 +327,83 @@ class AddActionConfig extends ChildNode {
 
     cfg.id = res;
     provider.addNode('${parent.path}/$res', ActionConfigNode.definition(cfg));
+    _link.save();
+
+    return ret;
+  }
+}
+
+class AddVirtualRule extends ChildNode {
+  static const String isType = 'addVirtualRule';
+  static const String pathName = 'Add_Virtual_Rule';
+
+  static const String _name = 'name';
+  static const String _enabled = 'enabled';
+  static const String _port = 'port';
+  static const String _action = 'actionId';
+  static const String _success = 'success';
+
+  static Map<String, dynamic> def() => {
+    r'$is': isType,
+    r'$name': 'Add Virtual Rule',
+    r'$invokable': 'write',
+    r'$params': [
+      {'name': _name, 'type': 'string', 'placeholder': 'Rule name'},
+      {'name': _enabled, 'type': 'bool', 'default': true},
+      {'name': _port, 'type': 'number', 'editor': 'int', 'min': 1, 'max': 32},
+      {'name': _action, 'type': 'number', 'editor': 'int', 'default': 0}
+    ],
+    r'$columns': [
+      {'name': _success, 'type': 'bool', 'default': false}
+    ]
+  };
+
+  final LinkProvider _link;
+  AddVirtualRule(String path, this._link): super(path);
+
+  @override
+  Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
+    final ret = { _success: true };
+
+    var name = params[_name] as String;
+    if (name == null || name.isEmpty) {
+      throw new ArgumentError('"$_name" cannot be empty.');
+    }
+
+    var cl = await getClient();
+    var rules = cl.getRules();
+    var exist = rules.firstWhere((ar) =>
+    ar.name.toLowerCase() == name.toLowerCase(), orElse: () => null);
+    if (exist != null) {
+      throw new ArgumentError('A rule with "$name" already exists');
+    }
+
+    var enable = params[_enabled] as bool;
+    var port = (params[_port] as num)?.toInt();
+
+    if (port == null || port <= 0 || port > 32) {
+      throw new ArgumentError('$_port must be between 1 and 32');
+    }
+
+    var action = (params[_action] as num)?.toInt();
+    var allConfs = cl.getConfigs();
+    var act = allConfs.firstWhere((ac) => ac.id == '$action',
+        orElse: () => null);
+    if (act == null) {
+      throw new ArgumentError('Unable to find an action with ID: $action');
+    }
+
+    var rule = new ActionRule('-1', name, enable, '$action');
+    rule.conditions.add(new Condition(soap.virtualInput(),
+        soap.viCondition('$port')));
+    var res = await cl.addActionRule(rule, act, true);
+
+    if (res == null || res.isEmpty) {
+      throw new StateError('Unable to add Action Rule');
+    }
+
+    rule.id = res;
+    provider.addNode('${parent.path}/$res', ActionRuleNode.definition(rule));
     _link.save();
 
     return ret;

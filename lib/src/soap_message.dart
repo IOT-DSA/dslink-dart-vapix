@@ -1,5 +1,8 @@
 import 'models/events_alerts.dart';
 
+/// Header SOAPAction for Get Action Templates
+const String headerGAT =
+    r'http://www.axis.com/vapix/ws/action1/GetActionTemplates';
 /// Header SOAPAction for Get Action Rules
 const String headerGAR =
     r'http://www.axis.com/vapix/ws/action1/GetActionRules';
@@ -21,11 +24,19 @@ const String headerAAC =
 /// Header SOAPAction for Get Event Instances
 const String headerGEI =
     r'http://www.axis.com/vapix/ws/event1/GetEventInstances';
+/// Header SOAPAction for Get Light Service Capabilities
+const String headerGSC =
+    r'http://www.axis.com/vapix/ws/light/GetServiceCapabilities';
+/// Header SOAPAction for Get Light Information
+const String headerGLI =
+    r'http://www.axis.com/vapix/ws/light/GetLightInformation';
 
-const String _event1 = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
-const String _eventNoNS = r'xmlns="http://www.axis.com/vapix/ws/event1"';
 const String _action1 = r'xmlns:aa="http://www.axis.com/vapix/ws/action1"';
 const String _actionNoNS = r'xmlns="http://www.axis.com/vapix/ws/action1"';
+const String _event1 = r'xmlns:aev="http://www.axis.com/vapix/ws/event1"';
+const String _eventNoNS = r'xmlns="http://www.axis.com/vapix/ws/event1"';
+const String _light = r'xmlns:ali="http://www.axis.com/vapix/ws/light"';
+const String _lightNoNs = r'xmlns="http://www.axis.com/vapix/ws/light"';
 
 /// Used for ActionRules for conditions, specifies motion detection
 String motion() => r'tns1:VideoAnalytics/tnsaxis:MotionDetection';
@@ -34,6 +45,11 @@ String motion() => r'tns1:VideoAnalytics/tnsaxis:MotionDetection';
 String condition(String windowId) => 'boolean(//SimpleItem[@Name="window" and '
     '@Value="$windowId"]) and boolean(//SimpleItem[@Name="motion" and '
     '@Value="1"])';
+/// Used for ActionRules for conditions, specifies Virtual Input trigger
+String virtualInput() => r'tns1:Device/tnsaxis:IO/tnsaxis:VirtualInput';
+/// Used for ActionRules for conditions, specifies which port number is activated
+String viCondition(String port) => 'boolean(//SimpleItem[@Name="port" and '
+    '@Value="$port"]) and boolean(//SimpleItem[@Name="active" and @Value="1"])';
 
 String header(String template, String request) =>
     '''<?xml version="1.0" encoding="utf-8"?>
@@ -43,6 +59,10 @@ String header(String template, String request) =>
   </soap:Body>
 </soap:Envelope>
 ''';
+
+/// Generate SOAP Envelope to Get Action Templates
+String getActionTemplates() => header(_action1,
+  '<aa:GetActionTemplates $_actionNoNS></aa:GetActionTemplates>');
 
 /// Generate SOAP Envelope to Get Event Instances
 String getEventInstances() => header(_event1,
@@ -118,3 +138,31 @@ String addActionRule(ActionRule ar, ActionConfig ac) {
 
   return header(_action1, body);
 }
+
+String addVirtualActionRule(ActionRule ar, ActionConfig ac) {
+  var body = '''<aa:AddActionRule $_actionNoNS>
+    <NewActionRule>
+      <Name>${ar.name}</Name>
+      <Enabled>${ar.enabled}</Enabled>
+      <Conditions>\n''';
+      for (var c in ar.conditions) {
+        body += '<Condition>\n';
+        body += '        <wsnt:TopicExpression Dialect="http://www.onvif.org/ver10/tev/topicExpression/ConcreteSet">${c.topic}</wsnt:TopicExpression>\n';
+        body += '          <wsnt:MessageContent Dialect="http://www.onvif.org/ver10/tev/messageContentFilter/ItemFilter">${c.message}</wsnt:MessageContent>\n';
+        body += '</Condition>\n';
+      }
+      body += '''</Conditions>
+      <PrimaryAction>${ar.primaryAction}</PrimaryAction>
+    </NewActionRule>
+  </aa:AddActionRule>''';
+
+      return header(_action1, body);
+}
+
+/// Generate SOAP Envelope to Get Light Service Capabilities
+String getServiceCapabilities() => header(_light,
+    '<ali:GetServiceCapabilities $_lightNoNs></ali:GetServiceCapabilities>');
+
+/// Generate SOAP Envelope to Get Light Information
+String getLightInformation() => header(_light,
+    '<ali:GetLightInformation $_lightNoNs></ali:GetLightInformation>');

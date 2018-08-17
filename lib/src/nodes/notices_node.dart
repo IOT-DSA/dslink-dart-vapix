@@ -179,3 +179,27 @@ class NotificationNode extends SimpleNode {
     updateValue(value + 1, force: true);
   }
 }
+
+class RemoveNotification extends SimpleNode {
+  static const String _success = 'success';
+
+  static const isType = 'removeNotification';
+  static Map<String, dynamic> def() => {
+    r'$is': isType,
+    r'$name': 'Remove Notification',
+    r'$invokable': 'write',
+    r'$params': [],
+    r'$columns': [
+      {'name': _success, 'type': 'bool', 'default': false}
+    ]
+  };
+
+  RemoveNotification(String path): super(path);
+
+  @override
+  Map<String, bool> onInvoke(Map<String, dynamic> params) {
+    parent.remove();
+
+    return {_success: true};
+  }
+}

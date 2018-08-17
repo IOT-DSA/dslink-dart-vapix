@@ -10,6 +10,8 @@ import 'param_value.dart';
 import 'window_commands.dart';
 import 'camera_resolution.dart';
 import 'ptz_command_node.dart';
+import 'device_leds.dart';
+import 'virtual_ports.dart';
 import '../client.dart';
 import '../../models.dart';
 
@@ -162,7 +164,8 @@ class DeviceNode extends SimpleNode implements Device {
         EditDevice.pathName: EditDevice.definition(uri, user, sec),
         RemoveDevice.pathName: RemoveDevice.definition(),
         RefreshDevice.pathName: RefreshDevice.def(),
-        ReconnectDevice.pathName: ReconnectDevice.def()
+        ReconnectDevice.pathName: ReconnectDevice.def(),
+        VirtualPortTrigger.pathName: VirtualPortTrigger.def()
       };
 
   static const String _user = r'$$ax_user';
@@ -170,6 +173,7 @@ class DeviceNode extends SimpleNode implements Device {
   static const String _uri = r'$$ax_uri';
   static const String _sec = r'$$ax_secure';
   static const String _motion = 'Motion';
+  static const String _Leds = 'LEDs';
 
   void setDevice(AxisDevice dev) {
     if (_comp.isCompleted) return;
@@ -217,6 +221,12 @@ class DeviceNode extends SimpleNode implements Device {
       provider.addNode('$path/${RefreshDevice.pathName}', RefreshDevice.def());
     }
 
+    nd = provider.getNode('$path/${VirtualPortTrigger.pathName}');
+    if (nd == null) {
+      provider.addNode('$path/${VirtualPortTrigger.pathName}',
+          VirtualPortTrigger.def());
+    }
+
     var u = getConfig(_user);
     var p = getConfig(_pass);
     var a = getConfig(_uri);
@@ -245,9 +255,25 @@ class DeviceNode extends SimpleNode implements Device {
       if (_cl.supportsPTZ()) {
         _cl.getPTZCommands().then(_populatePTZNodes);
       }
+      _cl.hasLedControls().then((bool hasControls) {
+        if (hasControls) return _cl.getLeds();
+      }).then(_populateLeds);
 
       return dev;
     }).then(_populateNodes);
+  }
+
+  void _populateLeds(List<Led> leds) {
+    var ledNodes = provider.getOrCreateNode('$path/$_Leds');
+
+    for (var l in leds) {
+      var nm = NodeNamer.createName(l.name);
+      var lNode = provider.getNode('${ledNodes.path}/$nm') as SimpleNode;
+      if (lNode != null) lNode.remove();
+
+      lNode = provider.getOrCreateNode('${ledNodes.path}/$nm');
+      provider.addNode('${lNode.path}/${SetLed.pathName}', SetLed.def(l));
+    }
   }
 
   void _populateResolution(List<CameraResolution> resolutions) {

@@ -9,9 +9,7 @@ import 'package:xml/xml.dart' as xml;
 import 'package:crypto/crypto.dart' show md5, MD5, Digest;
 
 import 'soap_message.dart' as soap;
-import 'models/axis_device.dart';
-import 'models/events_alerts.dart';
-import 'models/ptz_commands.dart';
+import '../models.dart';
 
 enum AuthError { ok, auth, notFound, server, other }
 
@@ -24,6 +22,9 @@ class VClient {
   static const String _paramPath = '/axis-cgi/param.cgi';
   static const String _imgSizePath = '/axis-cgi/imagesize.cgi';
   static const String _ptzPath = '/axis-cgi/com/ptz.cgi';
+  static const String _ledsPath = '/axis-cgi/ledcontrol/getleds.cgi';
+  static const String _viActive = '/axis-cgi/virtualinput/activate.cgi';
+  static const String _viDeactive = '/axis-cgi/virtualinput/deactivate.cgi';
 
   Uri _rootUri;
   Uri _origUri;
@@ -388,6 +389,41 @@ class VClient {
     return Future.wait(futs);
   }
 
+  Future<bool> setVirtualPort(int port, bool active) async {
+    final Map<String, String> params = {
+      'schemaversion': '1',
+      'port': '$port'
+    };
+
+    var p = active ? _viActive : _viDeactive;
+    var uri = _rootUri.replace(path: p, queryParameters: params);
+
+    xml.XmlDocument doc;
+    try {
+      var resp = await _addRequest(uri, reqMethod.GET);
+      doc = xml.parse(resp.body);
+    } catch (e) {
+      logger.warning('${_rootUri.host} -- Error requesting virtual input', e);
+      rethrow;
+    }
+
+    var errs = doc.findAllElements('GeneralError');
+    if (errs != null && errs.isNotEmpty) {
+      var err = errs.first;
+      var errCode = err.findElements('ErrorCode')?.first?.text;
+      var errDesc = err.findElements('ErrorDescription')?.first?.text;
+      throw new Exception('$errCode - $errDesc');
+    }
+
+    var states = doc.findAllElements('StateChanged');
+    if (states == null || states.isEmpty) {
+      throw new StateError('Response did not contain StateChange or error');
+    }
+
+    var stateChange = states.first;
+    return stateChange.text.trim().toLowerCase() == 'true';
+  }
+
   //***************************************
   //************** SOAP CALLS *************
   //***************************************
@@ -406,8 +442,68 @@ class VClient {
     return me;
   }
 
+  Future<List<Led>> getLeds() async {
+    final query = <String,String>{
+      'schemaversion': '1'
+    };
+    var uri = _rootUri.replace(path: _ledsPath, queryParameters: query);
+    var res = await _addRequest(uri, reqMethod.GET);
+
+    xml.XmlDocument doc;
+    try {
+      doc = xml.parse(res.body);
+    } catch (e) {
+      logger.warning(
+          '${_rootUri.host} -- Failed to parse results: '
+              '${res.body}',
+          e);
+      return null;
+    }
+
+    if (doc == null) return null;
+    var els = doc.findAllElements('LedCapabilities');
+    var list = new List<Led>();
+
+    if (els == null) return list;
+    for (var el in els) {
+      list.add(new Led.fromXml(el));
+    }
+
+    return list;
+  }
+
+  Future<Iterable<xml.XmlElement>> getActionTemplates() async {
+    var doc = await _soapRequest(soap.getActionTemplates(), soap.headerGAT);
+    
+    if (doc == null) return [];
+    
+    return doc.findAllElements('aa:ActionTemplate');
+  }
+
+  Future<bool> hasLedControls() async {
+    var templates = await getActionTemplates();
+
+    for (var t in templates) {
+      var token = t.findElements('aa:TemplateToken')?.first;
+      if (token == null) continue;
+      if (token.text == 'com.axis.action.unlimited.ledcontrol') return true;
+    }
+
+    return false;
+  }
+
+  Future<String> setLedColor(ActionConfig ac) async {
+    var doc = await _soapRequest(soap.addActionConfig(ac), soap.headerAAC);
+
+    if (doc == null) return null;
+    var el = doc.findAllElements('aa:ConfigurationID')?.first;
+    if (el == null) return null;
+    ac.id = el.text;
+    _configs.add(ac);
+    return el.text;
+  }
+
   Future<List<ActionConfig>> getActionConfigs() async {
-    print('Getting Configs');
     var doc = await _soapRequest(soap.getActionConfigs(), soap.headerGAC);
 
     if (doc == null) return null;
@@ -486,12 +582,32 @@ class VClient {
     return res;
   }
 
-  Future<String> addActionRule(ActionRule ar, ActionConfig ac) async {
-    var doc = await _soapRequest(soap.addActionRule(ar, ac), soap.headerAAR);
-
+  Future<String> addActionRule(ActionRule ar, ActionConfig ac, [bool virt = false]) async {
+    xml.XmlDocument doc;
+    print('Soap data\n${soap.addVirtualActionRule(ar, ac)}');
+    if (virt) {
+      doc = await _soapRequest(soap.addVirtualActionRule(ar, ac), soap.headerAAR);
+    } else {
+      doc = await _soapRequest(soap.addActionRule(ar, ac), soap.headerAAR);
+    }
     if (doc == null) return null;
-    var el = doc.findAllElements('aa:RuleID')?.first;
-    if (el == null) return null;
+
+    var fault = doc.findAllElements('SOAP-ENV:Fault');
+    if (fault != null && fault.isNotEmpty) {
+      var err = fault.first.findAllElements('SOAP-ENV:Text');
+      if (err != null && err.isNotEmpty) {
+        var msg = err.first.text;
+        logger.info('Add ActionRule failed:\n${doc.toString()}');
+        throw new Exception('Remote server error: $msg');
+      }
+    }
+
+    var ruleIds = doc.findAllElements('aa:RuleID');
+    if (ruleIds == null || ruleIds.isEmpty) {
+      logger.info('No ruleID found. Failed to add? Data:\n${doc.toString()}');
+      return null;
+    }
+    var el = ruleIds.first;
     ar.id = el.text;
     _rules.add(ar);
     return el.text;
