@@ -1,6 +1,6 @@
 # dslink-dart-vapix
 
-## Axis Camear VAPIX DSLink
+## Axis Camera VAPIX DSLink
 
 A DSLink for Axis Cameras, interfacing with their VAPIX. This uses REST and
 SOAP requests primarily to deal with Motion Detection windows, and the
