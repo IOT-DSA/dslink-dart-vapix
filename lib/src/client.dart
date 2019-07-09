@@ -60,7 +60,13 @@ class VClient {
     if (!secure) {
       _rootUri = _rootUri.replace(userInfo: '$_user:$_pass');
     }
-    _client = new http.IOClient();
+
+    var inner = new HttpClient();
+    inner.badCertificateCallback = (X509Certificate cr, String host, int port) {
+      logger.warning('Invalid certificate received for: $host:$port');
+      return true;
+    };
+    _client = new http.IOClient(inner);
     _queue = new Queue<ClientReq>();
   }
 
