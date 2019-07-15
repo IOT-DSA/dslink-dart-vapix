@@ -106,65 +106,11 @@ class VClient {
     return AuthError.ok;
   }
 
-  /*
-  String _digestAuth(Uri uri, http.Response resp) {
-    var authVals = HeaderValue.parse(resp.headers[HttpHeaders.WWW_AUTHENTICATE],
-        parameterSeparator: ',');
-
-    var reqUri = uri.path;
-    if (uri.hasQuery) {
-      reqUri = '$reqUri?${uri.query}';
-    }
-    var realm = authVals.parameters['realm'];
-    if (_ha1 == null || _ha1 == "") {
-      _ha1 = (md5 as MD5).convert('$_user:$realm:$_pass'.codeUnits).toString();
-    }
-    var ha2 = (md5 as MD5)
-        .convert('${resp.request.method}:$reqUri'.codeUnits)
-        .toString();
-    var nonce = authVals.parameters['nonce'];
-    var nc = (++_authAttempt).toRadixString(16);
-    nc = nc.padLeft(8, '0');
-    var cnonce = _generateCnonce();
-    var qop = authVals.parameters['qop'];
-    var response = (md5 as MD5)
-        .convert('$_ha1:$nonce:$nc:$cnonce:$qop:$ha2'.codeUnits)
-        .toString();
-
-    StringBuffer buffer = new StringBuffer()
-      ..write('Digest ')
-      ..write('username="$_user"')
-      ..write(', realm="$realm"')
-      ..write(', nonce="$nonce"')
-      ..write(', uri="$reqUri"')
-      ..write(', qop=$qop')
-      ..write(', algorithm="MD5"')
-      ..write(', nc=$nc')
-      ..write(', cnonce="$cnonce"')
-      ..write(', response="$response"');
-    if (authVals.parameters.containsKey('opaque')) {
-      buffer.write(', opaque="${authVals.parameters['opaque']}"');
-    }
-
-    return buffer.toString();
-  }
-
-  String _generateCnonce() {
-    List<int> l = <int>[];
-    var rand = new Random.secure();
-    for (var i = 0; i < 4; i++) {
-      l.add(rand.nextInt(255));
-    }
-    return new Digest(l).toString();
-  }
- */
-
   Future<AuthError> updateClient(
       Uri uri, String user, String pass, bool secure) async {
     var cl = new VClient._(uri, user, pass, secure);
     var res = await cl.authenticate();
     if (res == AuthError.ok) {
-      close();
       _cache['$user@$uri'] = cl;
     }
     return res;
@@ -172,7 +118,6 @@ class VClient {
 
   void close() {
     _authenticated = false;
-//    _client?.close();
     _cache.remove('$_user@$_origUri');
   }
 
