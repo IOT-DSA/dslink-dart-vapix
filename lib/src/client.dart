@@ -17,6 +17,8 @@ typedef void disconnectCallback(bool disconnected);
 
 const Duration _Timeout = const Duration(seconds: 30);
 
+SecurityContext context;
+
 class VClient {
   static final Map<String, VClient> _cache = <String, VClient>{};
   static const String _paramPath = '/axis-cgi/param.cgi';
@@ -622,7 +624,8 @@ class ReqController {
   factory ReqController() {
     _singleton ??= new ReqController._();
     if (_singleton._clients.length < 10) {
-      var cl = new HttpClient(/* Add Security context */);
+      var cl = new HttpClient(context: context);
+
       cl.badCertificateCallback = (X509Certificate cr, String host, int port) {
         logger.warning('Invalid certificate received for: $host:$port');
         return true;

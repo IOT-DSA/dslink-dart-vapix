@@ -1,9 +1,17 @@
+import 'dart:async';
+import 'dart:io';
+
 import "package:dslink/dslink.dart";
+import 'package:dslink/utils.dart' show logger;
+
 
 import "package:dslink_vapix/vapix.dart";
+import "package:dslink_vapix/src/client.dart" show context;
 
 main(List<String> args) async {
   LinkProvider link;
+
+  checkSsl();
 
   link = new LinkProvider(args, "Axis-", autoInitialize: false, profiles: {
     NoticeNode.isType: (String path) => new NoticeNode(path, link),
@@ -42,3 +50,30 @@ main(List<String> args) async {
   await link.connect();
 }
 
+void checkSsl() {
+  String certPath = Directory.current.path;
+  if (Platform.isWindows) {
+    certPath += r'\';
+  } else {
+    certPath += r'/';
+  }
+  certPath += 'certs';
+
+  Directory certsDir = new Directory(certPath);
+  if (!certsDir.existsSync()) return;
+
+  var files = certsDir.listSync();
+  if (files.isEmpty) return;
+
+  var con = new SecurityContext();
+  for (var f in files) {
+    try {
+      con.setTrustedCertificates(f.path);
+      logger.info('Imported certificate: ${f.path}');
+    } catch (e) {
+      logger.warning('Failed to import certificate: ${f.path}', e);
+    }
+  }
+
+  context = con;
+}
