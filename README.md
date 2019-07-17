@@ -252,3 +252,19 @@ You can use the `@set` action on either of the above values to change them. If
 changing the server status to `running` and the value immediately reverts to 
 `stopped` again, then the server is most likely encountering an error when trying
 to start. Please check the log files for the link to look for any errors.
+
+### Importing SSL Certificates
+
+It is recommended to use SSL Security certificates on the remote Axis cameras. However
+in some situations you may have a self-signed certificate rather than one provided by
+a root authority. In situations like this, it may be required to import the SSL certificates
+into the DSLink in order to prevent any errors of untrusted connections.
+
+If you installed the DSLink in your dglux-server, then you will need to add the
+trusted SSL certificates via the command line interface on that server. In 
+particular you will need tolocate the installation directory of your 
+dglux-server (for instance `/usr/local/opt/dsa/dglux-server`) from there,
+locate the installation of the Axis DSLink (usually in `dslinks/Axis`). Within
+that directory, create a new directory called `certs` and within it place any
+SSL certificates that should be trusted by the internal HTTP Client used by
+the DSLink.
