@@ -26,12 +26,11 @@ class VClient {
   static const String _viActive = '/axis-cgi/virtualinput/activate.cgi';
   static const String _viDeactive = '/axis-cgi/virtualinput/deactivate.cgi';
 
+  ReqController _controller;
   Uri _rootUri;
   Uri _origUri;
   String _user;
   String _pass;
-  String _ha1;
-  http.Client _client;
   disconnectCallback onDisconnect;
   Queue<ClientReq> _queue;
 
@@ -50,7 +49,6 @@ class VClient {
 
   AxisDevice device;
   bool _authenticated = false;
-  int _authAttempt = 0;
 
   factory VClient(Uri uri, String user, String pass, bool secure) =>
       _cache['$user@$uri'] ??= new VClient._(uri, user, pass, secure);
@@ -61,18 +59,11 @@ class VClient {
       _rootUri = _rootUri.replace(userInfo: '$_user:$_pass');
     }
 
-    var inner = new HttpClient();
-    inner.badCertificateCallback = (X509Certificate cr, String host, int port) {
-      logger.warning('Invalid certificate received for: $host:$port');
-      return true;
-    };
-    _client = new http.IOClient(inner);
-    _queue = new Queue<ClientReq>();
+    _controller = new ReqController();
   }
 
   Future<AuthError> reconnect() async {
     _authenticated = false;
-    _authAttempt = 0;
     return authenticate();
   }
 
@@ -89,6 +80,7 @@ class VClient {
       resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
       logger.warning('${_rootUri.host} -- Failed to authenticate.', e);
+      _authenticated = false;
       return AuthError.server;
     }
 
@@ -104,6 +96,7 @@ class VClient {
     if (!body.contains('=')) {
       logger.warning('${_rootUri.host} -- Error in body when authenticating: '
           '$body');
+      _authenticated = false;
       return AuthError.other;
     }
 
@@ -113,70 +106,18 @@ class VClient {
     return AuthError.ok;
   }
 
-  String _digestAuth(Uri uri, http.Response resp) {
-    var authVals = HeaderValue.parse(resp.headers[HttpHeaders.WWW_AUTHENTICATE],
-        parameterSeparator: ',');
-
-    var reqUri = uri.path;
-    if (uri.hasQuery) {
-      reqUri = '$reqUri?${uri.query}';
-    }
-    var realm = authVals.parameters['realm'];
-    if (_ha1 == null || _ha1 == "") {
-      _ha1 = (md5 as MD5).convert('$_user:$realm:$_pass'.codeUnits).toString();
-    }
-    var ha2 = (md5 as MD5)
-        .convert('${resp.request.method}:$reqUri'.codeUnits)
-        .toString();
-    var nonce = authVals.parameters['nonce'];
-    var nc = (++_authAttempt).toRadixString(16);
-    nc = nc.padLeft(8, '0');
-    var cnonce = _generateCnonce();
-    var qop = authVals.parameters['qop'];
-    var response = (md5 as MD5)
-        .convert('$_ha1:$nonce:$nc:$cnonce:$qop:$ha2'.codeUnits)
-        .toString();
-
-    StringBuffer buffer = new StringBuffer()
-      ..write('Digest ')
-      ..write('username="$_user"')
-      ..write(', realm="$realm"')
-      ..write(', nonce="$nonce"')
-      ..write(', uri="$reqUri"')
-      ..write(', qop=$qop')
-      ..write(', algorithm="MD5"')
-      ..write(', nc=$nc')
-      ..write(', cnonce="$cnonce"')
-      ..write(', response="$response"');
-    if (authVals.parameters.containsKey('opaque')) {
-      buffer.write(', opaque="${authVals.parameters['opaque']}"');
-    }
-
-    return buffer.toString();
-  }
-
-  String _generateCnonce() {
-    List<int> l = <int>[];
-    var rand = new Random.secure();
-    for (var i = 0; i < 4; i++) {
-      l.add(rand.nextInt(255));
-    }
-    return new Digest(l).toString();
-  }
-
   Future<AuthError> updateClient(
       Uri uri, String user, String pass, bool secure) async {
     var cl = new VClient._(uri, user, pass, secure);
     var res = await cl.authenticate();
     if (res == AuthError.ok) {
-      close();
       _cache['$user@$uri'] = cl;
     }
     return res;
   }
 
   void close() {
-    _client?.close();
+    _authenticated = false;
     _cache.remove('$_user@$_origUri');
   }
 
@@ -260,7 +201,8 @@ class VClient {
           return new PTZCameraCommands(commands, i);
         }));
       } catch (e) {
-        logger.warning('${_rootUri.host}-- Failed to check for PTZ commands on camera $i.', e);
+        logger.warning('${_rootUri.host}-- ' +
+            'Failed to check for PTZ commands on camera $i.', e);
       }
     }
 
@@ -590,7 +532,6 @@ class VClient {
 
   Future<String> addActionRule(ActionRule ar, ActionConfig ac, [bool virt = false]) async {
     xml.XmlDocument doc;
-    print('Soap data\n${soap.addVirtualActionRule(ar, ac)}');
     if (virt) {
       doc = await _soapRequest(soap.addVirtualActionRule(ar, ac), soap.headerAAR);
     } else {
@@ -665,55 +606,143 @@ class VClient {
 
   Future<ClientResp> _addRequest(Uri uri, reqMethod method,
       [String msg, Map headers]) {
-    var cr = new ClientReq(uri, method, msg, headers);
+    var cr = new ClientReq(_user, _pass, uri, method, msg, headers);
+    if (onDisconnect != null) {
+      cr.callback = onDisconnect;
+    }
+    return _controller.add(cr);
+  }
+}
+
+class ReqController {
+  static ReqController _singleton;
+  final Queue<ClientReq> _queue;
+  final Queue<http.Client> _clients;
+
+  factory ReqController() {
+    _singleton ??= new ReqController._();
+    if (_singleton._clients.length < 10) {
+      var cl = new HttpClient(/* Add Security context */);
+      cl.badCertificateCallback = (X509Certificate cr, String host, int port) {
+        logger.warning('Invalid certificate received for: $host:$port');
+        return true;
+      };
+      _singleton._clients.add(new http.IOClient(cl));
+    }
+
+    return _singleton;
+  }
+
+  ReqController._() :
+        _queue = new Queue<ClientReq>(),
+        _clients = new Queue<http.Client>();
+
+  /// Generate a new nonce value for Digest Authentication
+  static String _generateCnonce() {
+    List<int> l = <int>[];
+    var rand = new Random.secure();
+    for (var i = 0; i < 4; i++) {
+      l.add(rand.nextInt(255));
+    }
+    return new Digest(l).toString();
+  }
+
+  // Generate new Digest Authentication header
+  static String _digestAuth(ClientReq cr, http.Response resp) {
+    var authVals = HeaderValue.parse(resp.headers[HttpHeaders.WWW_AUTHENTICATE],
+        parameterSeparator: ',');
+
+    var uri = cr.url;
+    var reqUri = uri.path;
+    if (uri.hasQuery) {
+      reqUri = '$reqUri?${uri.query}';
+    }
+
+    var realm = authVals.parameters['realm'];
+    var _ha1 = (md5 as MD5)
+        .convert('${cr.user}:$realm:${cr.pass}'.codeUnits)
+        .toString();
+
+    var ha2 = (md5 as MD5)
+        .convert('${resp.request.method}:$reqUri'.codeUnits)
+        .toString();
+
+    var nonce = authVals.parameters['nonce'];
+    var nc = cr.authAttempts.toRadixString(16);
+    nc = nc.padLeft(8, '0');
+    var cnonce = _generateCnonce();
+    var qop = authVals.parameters['qop'];
+    var response = (md5 as MD5)
+        .convert('$_ha1:$nonce:$nc:$cnonce:$qop:$ha2'.codeUnits)
+        .toString();
+
+    StringBuffer buffer = new StringBuffer()
+      ..write('Digest ')
+      ..write('username="${cr.user}"')
+      ..write(', realm="$realm"')
+      ..write(', nonce="$nonce"')
+      ..write(', uri="$reqUri"')
+      ..write(', qop=$qop')
+      ..write(', algorithm="MD5"')
+      ..write(', nc=$nc')
+      ..write(', cnonce="$cnonce"')
+      ..write(', response="$response"');
+    if (authVals.parameters.containsKey('opaque')) {
+      buffer.write(', opaque="${authVals.parameters['opaque']}"');
+    }
+
+    return buffer.toString();
+  }
+
+  Future<ClientResp> add(ClientReq cr) {
     _queue.add(cr);
     _sendRequest();
     return cr.response;
   }
 
-  bool _reqPending = false;
   Future _sendRequest() async {
-    if (_reqPending || _queue.isEmpty) return;
+    if (_queue.isEmpty || _clients.isEmpty) return;
 
-    _reqPending = true;
     ClientReq req = _queue.removeFirst();
+    var client = _clients.removeFirst();
 
     http.Response resp;
     try {
       switch (req.method) {
         case reqMethod.GET:
-          resp = await _client
+          resp = await client
               .get(req.url, headers: req.headers)
               .timeout(_Timeout);
           break;
         case reqMethod.POST:
-          resp = await _client
+          resp = await client
               .post(req.url, headers: req.headers, body: req.msg)
               .timeout(_Timeout);
           break;
       }
 
       var headers = req.headers ?? {};
-      while (resp.statusCode == HttpStatus.UNAUTHORIZED && _authAttempt < 4) {
-        var auth = _digestAuth(req.url, resp);
+      while (resp.statusCode == HttpStatus.UNAUTHORIZED && req.authAttempts < 4) {
+        req.authAttempts += 1;
+        var auth = _digestAuth(req, resp);
         headers[HttpHeaders.AUTHORIZATION] = auth;
         if (req.method == reqMethod.GET) {
-          resp = await _client.get(req.url, headers: headers).timeout(_Timeout);
+          resp = await client.get(req.url, headers: headers).timeout(_Timeout);
         } else if (req.method == reqMethod.POST) {
-          resp = await _client
+          resp = await client
               .post(req.url, headers: headers, body: req.msg)
               .timeout(_Timeout);
         }
       }
 
-      if (resp.statusCode != HttpStatus.UNAUTHORIZED) _authAttempt = 0;
+      if (resp.statusCode != HttpStatus.UNAUTHORIZED) req.authAttempts = 0;
+
       req._comp.complete(new ClientResp(resp.statusCode, resp.body));
     } catch (e) {
-      _authenticated = false;
-      if (onDisconnect != null) onDisconnect(true);
+      if (req.callback != null) req.callback(true);
       req._comp.completeError(e);
     } finally {
-      _reqPending = false;
+      _clients.add(client);
       _sendRequest();
     }
   }
@@ -726,10 +755,15 @@ class ClientReq {
   final String msg;
   final Map headers;
   final reqMethod method;
+  final String user;
+  final String pass;
+  disconnectCallback callback;
   Future<ClientResp> get response => _comp.future;
+  int authAttempts = 0;
 
   Completer<ClientResp> _comp;
-  ClientReq(this.url, this.method, [this.msg = null, this.headers = null]) {
+  ClientReq(this.user, this.pass, this.url, this.method,
+      [this.msg = null, this.headers = null]) {
     _comp = new Completer<ClientResp>();
   }
 }
