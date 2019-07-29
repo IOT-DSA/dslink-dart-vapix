@@ -168,7 +168,8 @@ class NotificationNode extends SimpleNode {
     r'$is': isType,
     r'$type' : 'number',
     r'?value' : 0,
-    r'$writable': 'write'
+    r'$writable': 'write',
+    RemoveNotification.pathName: RemoveNotification.def()
   };
 
   int curVal;
@@ -178,12 +179,21 @@ class NotificationNode extends SimpleNode {
   void increment() {
     updateValue(value + 1, force: true);
   }
+
+  @override
+  void onCreated() {
+    if (!children.containsKey(RemoveNotification.pathName)) {
+      provider.addNode('$path/${RemoveNotification.pathName}',
+        RemoveNotification.def());
+    }
+  }
 }
 
 class RemoveNotification extends SimpleNode {
   static const String _success = 'success';
 
   static const isType = 'removeNotification';
+  static const pathName = 'remove_notification';
   static Map<String, dynamic> def() => {
     r'$is': isType,
     r'$name': 'Remove Notification',
