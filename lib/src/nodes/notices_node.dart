@@ -177,7 +177,11 @@ class NotificationNode extends SimpleNode {
   NotificationNode(String path): super(path);
 
   void increment() {
-    updateValue(value + 1, force: true);
+    if (value == null || value is! int) {
+      updateValue(1);
+    } else {
+      updateValue(value + 1, force: true);
+    }
   }
 
   @override
