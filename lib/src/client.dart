@@ -588,7 +588,8 @@ class VClient {
     try {
       resp = await _addRequest(url, reqMethod.POST, msg, headers);
     } catch (e) {
-      logger.warning('${_rootUri.host} -- Error sending SOAP request.', e);
+      logger.warning('${_rootUri.host} -- Error sending SOAP request -- ' +
+          'Action: $header', e);
       return null;
     }
 

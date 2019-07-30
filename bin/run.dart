@@ -15,10 +15,11 @@ main(List<String> args) async {
 
   link = new LinkProvider(args, "Axis-", autoInitialize: false, profiles: {
     NoticeNode.isType: (String path) => new NoticeNode(path, link),
+    NotificationNode.isType: (String path) => new NotificationNode(path),
+    RemoveNotification.isType: (String path) => new RemoveNotification(path),
     ResolutionNode.isType: (String path) => new ResolutionNode(path),
     RefreshResolution.isType: (String path) => new RefreshResolution(path),
     PTZCommandNode.isType: (String path) => new PTZCommandNode(path),
-    NotificationNode.isType: (String path) => new NotificationNode(path),
     AddDevice.isType: (String path) => new AddDevice(path, link),
     DeviceNode.isType: (String path) => new DeviceNode(path, link),
     ParamsNode.isType: (String path) => new ParamsNode(path),
