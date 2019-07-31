@@ -155,7 +155,7 @@ class DeviceNode extends SimpleNode implements Device {
         //* MJPEG Url of the remote device.
         //*
         //* @Value string
-        'mjpgUrl': {
+        _mjpgUrl: {
           r'$name': 'MJPEG URL',
           r'$type': 'string',
           r'?value': '${uri.toString()}/mjpg/video.mjpg',
@@ -173,11 +173,12 @@ class DeviceNode extends SimpleNode implements Device {
   static const String _uri = r'$$ax_uri';
   static const String _sec = r'$$ax_secure';
   static const String _motion = 'Motion';
+  static const String _mjpgUrl = 'mjpgUrl';
   static const String _Leds = 'LEDs';
 
   void setDevice(AxisDevice dev) {
-    if (_comp.isCompleted) return;
     _device = dev;
+    if (_comp.isCompleted) return;
     _comp.complete(dev);
   }
 
@@ -204,28 +205,7 @@ class DeviceNode extends SimpleNode implements Device {
 
   @override
   void onCreated() {
-    var nd = provider.getNode('$path/${ReconnectDevice.pathName}');
-    if (nd == null) {
-      provider.addNode(
-          '$path/${ReconnectDevice.pathName}', ReconnectDevice.def());
-    }
-
-    nd = provider.getNode('$path/${ParamsNode.pathName}') as SimpleNode;
-    if (nd != null && nd.getConfig(r'$is') != ParamsNode.isType) {
-      nd.remove();
-      provider.addNode('$path/${ParamsNode.pathName}', ParamsNode.def());
-    }
-
-    nd = provider.getNode('$path/${RefreshDevice.pathName}');
-    if (nd == null) {
-      provider.addNode('$path/${RefreshDevice.pathName}', RefreshDevice.def());
-    }
-
-    nd = provider.getNode('$path/${VirtualPortTrigger.pathName}');
-    if (nd == null) {
-      provider.addNode('$path/${VirtualPortTrigger.pathName}',
-          VirtualPortTrigger.def());
-    }
+    _populateMissing();
 
     var u = getConfig(_user);
     var p = getConfig(_pass);
@@ -247,8 +227,7 @@ class DeviceNode extends SimpleNode implements Device {
       if (ae != AuthError.ok) return null;
 
       _clComp.complete(_cl);
-      var dev = _cl.device;
-      setDevice(dev);
+      setDevice(_cl.device);
 
       _cl.getResolutions().then(_populateResolution);
 
@@ -259,8 +238,19 @@ class DeviceNode extends SimpleNode implements Device {
         if (hasControls) return _cl.getLeds();
       }).then(_populateLeds);
 
-      return dev;
+      return _cl.device;
     }).then(_populateNodes);
+  }
+
+  void _populateMissing() {
+    CheckNode(provider, '$path/${ReconnectDevice.pathName}',
+        ReconnectDevice.def());
+
+    CheckNode(provider, '$path/${ParamsNode.pathName}', ParamsNode.def());
+    CheckNode(provider, '$path/${RefreshDevice.pathName}', RefreshDevice.def());
+
+    CheckNode(provider, '$path/${VirtualPortTrigger.pathName}',
+        VirtualPortTrigger.def());
   }
 
   void _populateLeds(List<Led> leds) {
@@ -364,11 +354,18 @@ class DeviceNode extends SimpleNode implements Device {
       pass = getConfig(_pass);
     }
     var res = await _cl.updateClient(uri, user, pass, secure);
+
     if (res == AuthError.ok) {
       _cl = new VClient(uri, user, pass, secure);
+      _cl.onDisconnect = _onDisconnect;
       configs[_uri] = uri.toString();
       configs[_user] = user;
       configs[_pass] = pass;
+      configs[_sec] = secure;
+      setDevice(_cl.device);
+      _populateNodes(_device);
+      var mjpgUrlNd = provider.getNode('$path/$_mjpgUrl');
+      mjpgUrlNd?.updateValue('${uri.toString()}/mjpg/video.mjpg');
     }
 
     return res;
@@ -465,6 +462,12 @@ class EditDevice extends SimpleNode {
 
     switch (res) {
       case AuthError.ok:
+        configs[r'$params'] = [
+          {'name': _addr, 'type': 'string', 'default': uri.toString()},
+          {'name': _user, 'type': 'string', 'placeholder': u},
+          {'name': _pass, 'type': 'string', 'editor': 'password'},
+          {'name': _sec, 'type': 'bool', 'default': s}
+        ];
         ret
           ..[_success] = true
           ..[_message] = 'Success!';

@@ -37,3 +37,10 @@ abstract class ChildNode extends SimpleNode  {
     updateList(r'$disconnectedTs');
   }
 }
+
+void CheckNode(SimpleNodeProvider provider, String path, Map<String, dynamic> map) {
+  var nd = provider.getNode(path);
+  if (nd != null) return;
+
+  provider.addNode(path, map);
+}
