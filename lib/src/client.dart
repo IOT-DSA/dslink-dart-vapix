@@ -113,6 +113,7 @@ class VClient {
     var cl = new VClient._(uri, user, pass, secure);
     var res = await cl.authenticate();
     if (res == AuthError.ok) {
+      close();
       _cache['$user@$uri'] = cl;
     }
     return res;
