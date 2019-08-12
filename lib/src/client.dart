@@ -398,14 +398,15 @@ class VClient {
       'schemaversion': '1'
     };
     var uri = _rootUri.replace(path: _ledsPath, queryParameters: query);
-    var res = await _addRequest(uri, reqMethod.GET);
 
     xml.XmlDocument doc;
+    ClientResp res;
     try {
+      res = await _addRequest(uri, reqMethod.GET);
       doc = xml.parse(res.body);
     } catch (e) {
       logger.warning(
-          '${_rootUri.host} -- Failed to parse results: '
+          '${_rootUri.host} -- GetLEDs - Failed to parse results: '
               '${res.body}',
           e);
       return null;
@@ -712,6 +713,9 @@ class ReqController {
     var client = _clients.removeFirst();
 
     http.Response resp;
+    // TODO: Retry 2 times after a timeout.
+    // TODO: Log after 3 failed attempts to indicate timeout.
+    // TODO: ease-off authentication retries and then block all other attempts.
     try {
       switch (req.method) {
         case reqMethod.GET:

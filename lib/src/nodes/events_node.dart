@@ -244,6 +244,7 @@ class AddActionConfig extends ChildNode {
   static const String _continuous = 'continuousAlert';
   static const String _ipAddr = 'ipAddress';
   static const String _port = 'port';
+  static const String _qos = 'qos';
   static const String _success = 'success';
   static const String _message = 'message';
 
@@ -256,7 +257,8 @@ class AddActionConfig extends ChildNode {
       {'name': _message, 'type': 'string', 'placeholder': 'Alert Message'},
       {'name': _continuous, 'type': 'bool', 'default': false},
       {'name': _ipAddr, 'type': 'string', 'placeholder': '0.0.0.0'},
-      {'name': _port, 'type': 'number', 'editor': 'int', 'default': 4444}
+      {'name': _port, 'type': 'number', 'editor': 'int', 'default': 4444},
+      {'name': _qos, 'type': 'number', 'editor': 'int', 'default': 0, 'min': 0, 'max': 63}
     ],
     r'$columns' : [
       { 'name' : _success, 'type' : 'bool', 'default' : false },
@@ -267,6 +269,27 @@ class AddActionConfig extends ChildNode {
   LinkProvider _link;
 
   AddActionConfig(String path, this._link) : super(path);
+
+  @override
+  void onCreated() {
+    var p = configs[r'$params'];
+    if(p is List) {
+      bool found = false;
+
+      for(var i = p.length - 1; i > 0; i--) {
+        var el = p[i];
+        if (el['name'] == _qos) {
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        p.add({'name': _qos, 'type': 'number', 'editor': 'int', 'default': 0, 'min': 0, 'max': 63});
+        configs[r'$params'] = p;
+      }
+    }
+  }
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
@@ -289,6 +312,9 @@ class AddActionConfig extends ChildNode {
       return ret..[_message] = 'Ip Address cannot be empty';
     }
 
+    var q = (params[_qos] as num)?.toInt();
+    if (q == null) q = 0;
+
     InternetAddress ip;
     try {
       ip = new InternetAddress(ipStr);
@@ -299,10 +325,11 @@ class AddActionConfig extends ChildNode {
     var port = (params[_port] as num)?.toInt();
     var cfg = new ActionConfig(name, '-1', tok);
 
-    cfg.params..add(new ConfigParams(ConfigParams.Message, msg))
+    cfg.params
+        ..add(new ConfigParams(ConfigParams.Message, msg))
         ..add(new ConfigParams(ConfigParams.Host, ipStr))
         ..add(new ConfigParams(ConfigParams.Port, '$port'))
-        ..add(new ConfigParams(ConfigParams.Qos, '0'));
+        ..add(new ConfigParams(ConfigParams.Qos, '$q'));
 
     if (cont) {
       cfg.params.add(new ConfigParams(ConfigParams.Period, '1'));
