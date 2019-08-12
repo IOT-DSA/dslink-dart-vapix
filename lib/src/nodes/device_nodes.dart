@@ -220,13 +220,15 @@ class DeviceNode extends SimpleNode implements Device {
       return;
     }
 
-    _cl = new VClient(uri, u, p, s);
-    _cl.onDisconnect = _onDisconnect;
 
-    _cl.authenticate().then((AuthError ae) {
+    var client = new VClient(uri, u, p, s);
+    client.onDisconnect = _onDisconnect;
+
+    client.authenticate().then((AuthError ae) {
       if (ae != AuthError.ok) return null;
 
-      _clComp.complete(_cl);
+      _cl = client;
+      _clComp.complete(client);
       setDevice(_cl.device);
 
       _cl.getResolutions().then(_populateResolution);
