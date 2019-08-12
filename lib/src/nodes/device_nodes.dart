@@ -364,6 +364,7 @@ class DeviceNode extends SimpleNode implements Device {
       configs[_user] = user;
       configs[_pass] = pass;
       configs[_sec] = secure;
+      updateList(r'$is');
       setDevice(_cl.device);
       _populateNodes(_device);
       var mjpgUrlNd = provider.getNode('$path/$_mjpgUrl');
@@ -473,6 +474,7 @@ class EditDevice extends SimpleNode {
         ret
           ..[_success] = true
           ..[_message] = 'Success!';
+        _link.save();
         break;
       case AuthError.notFound:
         ret[_message] = 'Unable to locate device parameters page. '
