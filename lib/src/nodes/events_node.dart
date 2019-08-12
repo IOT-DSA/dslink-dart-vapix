@@ -86,6 +86,7 @@ class EventsNode extends ChildNode implements Events {
     }
 
     getClient().then((cl) {
+      if (cl == null) return;
       cl.getEventInstances().then(_addInstances);
       cl.getActionRules().then(_addActionRules);
       cl.getActionConfigs().then(_addActionConfigs);
