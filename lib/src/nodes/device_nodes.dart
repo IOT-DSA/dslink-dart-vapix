@@ -256,6 +256,7 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   void _populateLeds(List<Led> leds) {
+    if (leds == null || leds.isEmpty) return;
     var ledNodes = provider.getOrCreateNode('$path/$_Leds');
 
     for (var l in leds) {
