@@ -220,13 +220,15 @@ class DeviceNode extends SimpleNode implements Device {
       return;
     }
 
-    _cl = new VClient(uri, u, p, s);
-    _cl.onDisconnect = _onDisconnect;
 
-    _cl.authenticate().then((AuthError ae) {
+    var client = new VClient(uri, u, p, s);
+    client.onDisconnect = _onDisconnect;
+
+    client.authenticate().then((AuthError ae) {
       if (ae != AuthError.ok) return null;
 
-      _clComp.complete(_cl);
+      _cl = client;
+      _clComp.complete(client);
       setDevice(_cl.device);
 
       _cl.getResolutions().then(_populateResolution);
@@ -254,6 +256,7 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   void _populateLeds(List<Led> leds) {
+    if (leds == null || leds.isEmpty) return;
     var ledNodes = provider.getOrCreateNode('$path/$_Leds');
 
     for (var l in leds) {
@@ -362,6 +365,7 @@ class DeviceNode extends SimpleNode implements Device {
       configs[_user] = user;
       configs[_pass] = pass;
       configs[_sec] = secure;
+      updateList(r'$is');
       setDevice(_cl.device);
       _populateNodes(_device);
       var mjpgUrlNd = provider.getNode('$path/$_mjpgUrl');
@@ -471,6 +475,7 @@ class EditDevice extends SimpleNode {
         ret
           ..[_success] = true
           ..[_message] = 'Success!';
+        _link.save();
         break;
       case AuthError.notFound:
         ret[_message] = 'Unable to locate device parameters page. '

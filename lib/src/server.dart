@@ -30,9 +30,10 @@ class Server {
     _running = true;
     _notices = new StreamController<String>();
     _svr.listen((sock) {
+      var addr = sock.address.address;
       sock.transform(UTF8.decoder).listen((String str) {
         str = str.trim();
-        logger.finest('Socket received string: $str');
+        logger.finest('Socket received string: $str from $addr');
         _notices.add(str);
       }, onError: (err) {
         logger.warning('Socket received error', err);
