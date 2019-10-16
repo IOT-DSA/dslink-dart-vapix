@@ -531,7 +531,7 @@ class RemoveDevice extends SimpleNode {
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = {_success: true, _message: 'Success!'};
 
-    (parent as DeviceNode)._cl?.close();
+    (parent as DeviceNode)._cl?.clearConn();
     parent.remove();
     _link.save();
 
