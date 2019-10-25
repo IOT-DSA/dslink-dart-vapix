@@ -33,6 +33,8 @@ class VClient {
   Uri _origUri;
   String _user;
   String _pass;
+  // Callback is called after timing out 3 times, or if we receive an
+  // UNAUTHENTICATED error after sending Digest (eg username/password error)
   disconnectCallback onDisconnect;
   Queue<ClientReq> _queue;
 
@@ -51,6 +53,8 @@ class VClient {
 
   AxisDevice device;
   bool _authenticated = false;
+  Timer _retryTimer;
+  Duration _retryDur;
 
   factory VClient(Uri uri, String user, String pass, bool secure) =>
       _cache['$user@$uri'] ??= new VClient._(uri, user, pass, secure);
@@ -69,8 +73,38 @@ class VClient {
     return authenticate();
   }
 
+  Future retry(bool isDisconnected) async {
+    if (onDisconnect != null) {
+      onDisconnect(isDisconnected);
+    }
+
+    // Don't try fallback if we reconnected.
+    if (!isDisconnected) {
+      _retryDur = null;
+      _retryTimer?.cancel();
+      return;
+    }
+
+    if (_retryDur == null) {
+      _retryDur = new Duration(minutes: 5);
+    } else {
+      var min = _retryDur.inMinutes * 2;
+      if (min > 120) min = 120;
+
+      _retryDur = new Duration(minutes: min);
+    }
+
+    if (_retryTimer?.isActive == true) _retryTimer.cancel();
+
+    _retryTimer = new Timer(_retryDur, () { authenticate(); });
+  }
+
   // Try authenticate and load the parameters for the device.
   Future<AuthError> authenticate({bool force: false}) async {
+    if (_retryTimer?.isActive == true) {
+      _retryTimer.cancel();
+    }
+
     if (_authenticated && device != null && !force) return AuthError.ok;
 
     var q = {'action': 'list'};
@@ -82,15 +116,14 @@ class VClient {
       resp = await _addRequest(uri, reqMethod.GET);
     } catch (e) {
       logger.warning('${_rootUri.host} -- Failed to authenticate.', e);
-      _authenticated = false;
+      clearConn();
       return AuthError.server;
     }
 
     if (resp.status == HttpStatus.UNAUTHORIZED) {
       logger.warning('${_rootUri.host} -- Unauthorized: UserInfo '
           '${uri.userInfo}');
-      close();
-      if (onDisconnect != null) onDisconnect(true);
+      clearConn();
       return AuthError.auth;
     }
 
@@ -98,13 +131,13 @@ class VClient {
     if (!body.contains('=')) {
       logger.warning('${_rootUri.host} -- Error in body when authenticating: '
           '$body');
-      _authenticated = false;
+      clearConn();
       return AuthError.other;
     }
 
     device = new AxisDevice(_rootUri, body);
     _authenticated = true;
-    if (onDisconnect != null) onDisconnect(false);
+    retry(false);
     return AuthError.ok;
   }
 
@@ -113,13 +146,15 @@ class VClient {
     var cl = new VClient._(uri, user, pass, secure);
     var res = await cl.authenticate();
     if (res == AuthError.ok) {
-      close();
+      clearConn();
       _cache['$user@$uri'] = cl;
     }
     return res;
   }
 
-  void close() {
+  /// Clear the connection state, removing from cache and flagging as not
+  /// authenticated.
+  void clearConn() {
     _authenticated = false;
     _cache.remove('$_user@$_origUri');
   }
@@ -613,7 +648,7 @@ class VClient {
       [String msg, Map headers]) {
     var cr = new ClientReq(_user, _pass, uri, method, msg, headers);
     if (onDisconnect != null) {
-      cr.callback = onDisconnect;
+      cr.callback = retry;
     }
     return _controller.add(cr);
   }
@@ -713,9 +748,6 @@ class ReqController {
     var client = _clients.removeFirst();
 
     http.Response resp;
-    // TODO: Retry 2 times after a timeout.
-    // TODO: Log after 3 failed attempts to indicate timeout.
-    // TODO: ease-off authentication retries and then block all other attempts.
     try {
       switch (req.method) {
         case reqMethod.GET:
@@ -747,6 +779,16 @@ class ReqController {
       if (resp.statusCode != HttpStatus.UNAUTHORIZED) req.authAttempts = 0;
 
       req._comp.complete(new ClientResp(resp.statusCode, resp.body));
+    } on TimeoutException catch(e){
+      if (req.timeout < 2) {
+        // Retry timeouts 3 times. Add to the top of the queue
+        req.timeout++;
+        _queue.addFirst(req);
+      } else {
+        logger.info('Request to ${req.url.host} had 3 consecutive timeouts.');
+        if (req.callback != null) req.callback(true);
+        req._comp.completeError(e);
+      }
     } catch (e) {
       if (req.callback != null) req.callback(true);
       req._comp.completeError(e);
@@ -769,6 +811,7 @@ class ClientReq {
   disconnectCallback callback;
   Future<ClientResp> get response => _comp.future;
   int authAttempts = 0;
+  int timeout = 0;
 
   Completer<ClientResp> _comp;
   ClientReq(this.user, this.pass, this.url, this.method,
