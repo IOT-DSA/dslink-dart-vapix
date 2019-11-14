@@ -134,6 +134,7 @@ class AddDevice extends SimpleNode {
 //* a device such as remote address and credentials. It will have the node name
 //* specified when being added.
 class DeviceNode extends SimpleNode implements Device {
+  // TODO: Add "disconnected" metric to set to true instead of disconnectedTs
   static const String isType = 'deviceNode';
   static Map<String, dynamic> definition(
           Uri uri, String user, String pass, bool sec) =>
@@ -143,6 +144,10 @@ class DeviceNode extends SimpleNode implements Device {
         _user: user,
         _pass: pass,
         _sec: sec,
+        _disconnected: {
+          r'$type': 'bool',
+          r'?value': false
+        },
         //* @Node params
         //* @Parent DeviceNode
         //*
@@ -175,6 +180,7 @@ class DeviceNode extends SimpleNode implements Device {
   static const String _motion = 'Motion';
   static const String _mjpgUrl = 'mjpgUrl';
   static const String _Leds = 'LEDs';
+  static const String _disconnected = 'Disconnected';
 
   void setDevice(AxisDevice dev) {
     _device = dev;
@@ -220,16 +226,17 @@ class DeviceNode extends SimpleNode implements Device {
       return;
     }
 
+    _cl = new VClient(uri, u, p, s);
+    _cl.onDisconnect = _onDisconnect;
 
-    var client = new VClient(uri, u, p, s);
-    client.onDisconnect = _onDisconnect;
-
-    client.authenticate().then((AuthError ae) {
+    _cl.authenticate().then((AuthError ae) {
       if (ae != AuthError.ok) return null;
 
-      _cl = client;
-      _clComp.complete(client);
+      _clComp.complete(_cl);
       setDevice(_cl.device);
+
+      var evntNode = provider.getNode('$path/${EventsNode.pathName}') as EventsNode;
+      evntNode.updateEvents();
 
       _cl.getResolutions().then(_populateResolution);
 
@@ -253,6 +260,9 @@ class DeviceNode extends SimpleNode implements Device {
 
     CheckNode(provider, '$path/${VirtualPortTrigger.pathName}',
         VirtualPortTrigger.def());
+
+    CheckNode(provider, '$path/$_disconnected',
+        {r'$name': 'Disconnected', r'$type': 'bool', r'?value': false});
   }
 
   void _populateLeds(List<Led> leds) {
@@ -299,6 +309,8 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   void _populateNodes(AxisDevice dev) {
+    if (dev == null) return;
+
     void genNodes(Map<String, dynamic> map, String path) {
       for (String key in map.keys) {
         var el = map[key];
@@ -316,8 +328,6 @@ class DeviceNode extends SimpleNode implements Device {
         }
       }
     } // end genNodes
-
-    if (dev == null) return;
 
     var p = provider.getNode('$path/${ParamsNode.pathName}');
     if (p == null) {
@@ -386,6 +396,7 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   void _onDisconnect(bool disconnected) {
+    provider.updateValue('$path/$_disconnected', disconnected);
     if (!disconnected) {
       children.values.where((nd) => nd is ChildNode).forEach((ChildNode nd) {
         nd.disconnected = null;
@@ -569,9 +580,8 @@ class ReconnectDevice extends SimpleNode {
         ret[_success] = true;
         break;
       default:
-        ret
-          ..[_success] = false
-          ..[_message] = 'Error authenticating';
+        ret..[_success] = false
+        ..[_message] = 'Failed to authenticate. Please check logs';
     }
 
     return ret;

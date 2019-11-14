@@ -84,18 +84,12 @@ class EventsNode extends ChildNode implements Events {
       provider.addNode('$path/$_alarms/$rulesNd/${AddVirtualRule.pathName}',
           AddVirtualRule.def());
     }
-
-    getClient().then((cl) {
-      if (cl == null) return;
-      cl.getEventInstances().then(_addInstances);
-      cl.getActionRules().then(_addActionRules);
-      cl.getActionConfigs().then(_addActionConfigs);
-    });
   }
 
   /// Update children events and actions.
   Future<Null> updateEvents() async {
     var cl = await getClient();
+    if (cl == null) return;
 
     await Future.wait([
         cl.getEventInstances().then(_addInstances),

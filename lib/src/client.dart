@@ -12,6 +12,7 @@ import 'soap_message.dart' as soap;
 import '../models.dart';
 
 enum AuthError { ok, auth, notFound, server, other }
+enum AuthState { failed, authenticated, trying, not }
 
 typedef void disconnectCallback(bool disconnected);
 
@@ -52,7 +53,8 @@ class VClient {
   MotionEvents getMotion() => _motionEvents;
 
   AxisDevice device;
-  bool _authenticated = false;
+  AuthState _currAuth = AuthState.not;
+  Completer<AuthError> _authStatus;
   Timer _retryTimer;
   Duration _retryDur;
 
@@ -66,14 +68,20 @@ class VClient {
     }
 
     _controller = new ReqController();
+    _authStatus = new Completer<AuthError>();
   }
 
   Future<AuthError> reconnect() async {
-    _authenticated = false;
-    return authenticate();
+    if (_currAuth != AuthState.trying) {
+      _currAuth = AuthState.not;
+    }
+
+    return authenticate(force: true);
   }
 
   Future retry(bool isDisconnected) async {
+    if (_currAuth == AuthState.trying) return;
+
     if (onDisconnect != null) {
       onDisconnect(isDisconnected);
     }
@@ -101,11 +109,22 @@ class VClient {
 
   // Try authenticate and load the parameters for the device.
   Future<AuthError> authenticate({bool force: false}) async {
+    // When authentication don't try again if we're already in the middle of trying
+    if (_currAuth == AuthState.trying) return _authStatus.future;
+
     if (_retryTimer?.isActive == true) {
       _retryTimer.cancel();
     }
 
-    if (_authenticated && device != null && !force) return AuthError.ok;
+    if (_currAuth == AuthState.authenticated && device != null && !force) {
+      return AuthError.ok;
+    }
+
+    if (_authStatus == null || _authStatus.isCompleted) {
+      _authStatus = new Completer<AuthError>();
+    }
+
+    _currAuth = AuthState.trying;
 
     var q = {'action': 'list'};
     var uri = _rootUri.replace(path: _paramPath, queryParameters: q);
@@ -114,17 +133,25 @@ class VClient {
     String body;
     try {
       resp = await _addRequest(uri, reqMethod.GET);
+    } on TimeoutException {
+      logger.info('Requests to ${_rootUri.host} timed out.');
+      _authStatus.complete(AuthError.server);
+      clearConn(); // Reset
+      retry(true); // Retry
+      return _authStatus.future;
     } catch (e) {
       logger.warning('${_rootUri.host} -- Failed to authenticate.', e);
       clearConn();
-      return AuthError.server;
+      _authStatus.complete(AuthError.server);
+      return _authStatus.future;
     }
 
     if (resp.status == HttpStatus.UNAUTHORIZED) {
       logger.warning('${_rootUri.host} -- Unauthorized: UserInfo '
           '${uri.userInfo}');
       clearConn();
-      return AuthError.auth;
+      _authStatus.complete(AuthError.auth);
+      return _authStatus.future;
     }
 
     body = resp.body;
@@ -132,13 +159,16 @@ class VClient {
       logger.warning('${_rootUri.host} -- Error in body when authenticating: '
           '$body');
       clearConn();
-      return AuthError.other;
+      _authStatus.complete(AuthError.other);
+      return _authStatus.future;
     }
 
     device = new AxisDevice(_rootUri, body);
-    _authenticated = true;
+    _currAuth = AuthState.authenticated;
+
     retry(false);
-    return AuthError.ok;
+    _authStatus.complete(AuthError.ok);
+    return _authStatus.future;
   }
 
   Future<AuthError> updateClient(
@@ -155,7 +185,7 @@ class VClient {
   /// Clear the connection state, removing from cache and flagging as not
   /// authenticated.
   void clearConn() {
-    _authenticated = false;
+    _currAuth = AuthState.not;
     _cache.remove('$_user@$_origUri');
   }
 
@@ -647,9 +677,7 @@ class VClient {
   Future<ClientResp> _addRequest(Uri uri, reqMethod method,
       [String msg, Map headers]) {
     var cr = new ClientReq(_user, _pass, uri, method, msg, headers);
-    if (onDisconnect != null) {
-      cr.callback = retry;
-    }
+    cr.callback = retry;
     return _controller.add(cr);
   }
 }
@@ -786,11 +814,9 @@ class ReqController {
         _queue.addFirst(req);
       } else {
         logger.info('Request to ${req.url.host} had 3 consecutive timeouts.');
-        if (req.callback != null) req.callback(true);
         req._comp.completeError(e);
       }
     } catch (e) {
-      if (req.callback != null) req.callback(true);
       req._comp.completeError(e);
     } finally {
       _clients.add(client);
