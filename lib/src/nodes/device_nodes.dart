@@ -134,7 +134,6 @@ class AddDevice extends SimpleNode {
 //* a device such as remote address and credentials. It will have the node name
 //* specified when being added.
 class DeviceNode extends SimpleNode implements Device {
-  // TODO: Add "disconnected" metric to set to true instead of disconnectedTs
   static const String isType = 'deviceNode';
   static Map<String, dynamic> definition(
           Uri uri, String user, String pass, bool sec) =>
@@ -263,6 +262,9 @@ class DeviceNode extends SimpleNode implements Device {
 
     CheckNode(provider, '$path/$_disconnected',
         {r'$name': 'Disconnected', r'$type': 'bool', r'?value': false});
+
+    CheckNode(provider, '$path/${CheckConnection.pathName}',
+        CheckConnection.def());
   }
 
   void _populateLeds(List<Led> leds) {
@@ -396,6 +398,7 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   void _onDisconnect(bool disconnected) {
+    print('In onDisconnect');
     provider.updateValue('$path/$_disconnected', disconnected);
     if (!disconnected) {
       children.values.where((nd) => nd is ChildNode).forEach((ChildNode nd) {
@@ -640,5 +643,46 @@ class RefreshDevice extends SimpleNode {
     await Future.wait(futs);
 
     return ret;
+  }
+}
+
+//* @Action Check_Connection
+//* @Is checkConnection
+//* @Parent DeviceNode
+//*
+//* Performs a quick test of the connection to the selected device.
+//*
+//* This will perform a quick test of the connection to the camera, no more than
+//* approximately 5 seconds. To verify that the device is online. This action
+//* will throw an error if it is unable to connect to the camera.
+class CheckConnection extends ChildNode {
+  static const String isType = 'checkConnection';
+  static const String pathName = 'Check_Connection';
+
+  static const String _success = 'success';
+
+  static Map<String, dynamic> def() => {
+    r'$is': isType,
+    r'$name': 'Check Connection',
+    r'$invokable': 'write',
+    r'$params': [],
+    r'$columns': [
+      {'name': _success, 'type': 'bool', 'default': false}
+    ]
+  };
+
+  CheckConnection(String path) : super(path);
+
+  @override
+  Future<Map<String, bool>> onInvoke(Map<String, dynamic> params) async {
+    var client = await getClient();
+    bool ok = false;
+    try {
+      ok = await client.checkConnection();
+    } catch (e) {
+      throw new Exception('Failed to connect to device.');
+    }
+
+    return {_success: ok};
   }
 }

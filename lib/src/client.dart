@@ -14,7 +14,7 @@ import '../models.dart';
 enum AuthError { ok, auth, notFound, server, other }
 enum AuthState { failed, authenticated, trying, not }
 
-typedef void disconnectCallback(bool disconnected);
+typedef void disconnectCallback(bool isDisconnected);
 
 const Duration _Timeout = const Duration(seconds: 30);
 
@@ -105,6 +105,30 @@ class VClient {
     if (_retryTimer?.isActive == true) _retryTimer.cancel();
 
     _retryTimer = new Timer(_retryDur, () { authenticate(); });
+  }
+
+  // Send a request to the root URL of a camera. Return true if we receive
+  // any response at all. Throws an error on timeout (5 second duration) or
+  // any socket errors.
+  Future<bool> checkConnection() async {
+    var ok = true;
+
+    try {
+      await http.get(_rootUri).timeout(const Duration(seconds: 5));
+    } catch (e) {
+      logger.info('Check connection to ${_rootUri.host} failed:', e);
+      ok = false;
+      if (onDisconnect != null) {
+        print('onDisconnect is not null');
+        onDisconnect(!ok);
+      } else {
+        print("It's null");
+      }
+      new Future.delayed(const Duration(milliseconds:  500), () => retry(!ok));
+      rethrow;
+    }
+
+    return ok;
   }
 
   // Try authenticate and load the parameters for the device.
@@ -807,7 +831,7 @@ class ReqController {
       if (resp.statusCode != HttpStatus.UNAUTHORIZED) req.authAttempts = 0;
 
       req._comp.complete(new ClientResp(resp.statusCode, resp.body));
-    } on TimeoutException catch(e){
+    } on TimeoutException catch(e) {
       if (req.timeout < 2) {
         // Retry timeouts 3 times. Add to the top of the queue
         req.timeout++;
@@ -815,6 +839,7 @@ class ReqController {
       } else {
         logger.info('Request to ${req.url.host} had 3 consecutive timeouts.');
         req._comp.completeError(e);
+        req.callback(true);
       }
     } catch (e) {
       req._comp.completeError(e);

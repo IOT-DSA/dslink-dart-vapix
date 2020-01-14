@@ -39,6 +39,7 @@ main(List<String> args) async {
     ReconnectDevice.isType: (String path) => new ReconnectDevice(path),
     RefreshActions.isType: (String path) => new RefreshActions(path),
     RefreshDevice.isType: (String path) => new RefreshDevice(path),
+    CheckConnection.isType: (String path) => new CheckConnection(path),
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link),
     SetLed.isType: (String path) => new SetLed(path),
