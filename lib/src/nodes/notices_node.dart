@@ -208,11 +208,15 @@ class RemoveNotification extends SimpleNode {
     ]
   };
 
-  RemoveNotification(String path): super(path);
+  final LinkProvider _link;
+
+  RemoveNotification(String path, this._link): super(path);
 
   @override
   Map<String, bool> onInvoke(Map<String, dynamic> params) {
     parent.remove();
+
+    _link.save();
 
     return {_success: true};
   }
