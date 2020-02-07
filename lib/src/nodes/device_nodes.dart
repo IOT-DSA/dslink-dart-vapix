@@ -398,7 +398,6 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   void _onDisconnect(bool disconnected) {
-    print('In onDisconnect');
     provider.updateValue('$path/$_disconnected', disconnected);
     if (!disconnected) {
       children.values.where((nd) => nd is ChildNode).forEach((ChildNode nd) {

@@ -119,10 +119,7 @@ class VClient {
       logger.info('Check connection to ${_rootUri.host} failed:', e);
       ok = false;
       if (onDisconnect != null) {
-        print('onDisconnect is not null');
         onDisconnect(!ok);
-      } else {
-        print("It's null");
       }
       new Future.delayed(const Duration(milliseconds:  500), () => retry(!ok));
       rethrow;
@@ -352,7 +349,7 @@ class VClient {
       return null;
     }
 
-    return resp.body.split(' ')[0];
+    return body.split(' ')[0];
   }
 
   Future<bool> removeMotion(String group) async {
@@ -377,6 +374,39 @@ class VClient {
     }
 
     return res;
+  }
+
+  Future<String> addStreamProfile(Map params) async {
+    final Map<String, String> map = {
+      'action': 'add',
+      'template': 'streamprofile',
+      'group': 'StreamProfile'
+    };
+
+    params.forEach((String k, String v) {
+      var key = 'StreamProfile.S.$k';
+      map[key] = v.toString();
+    });
+
+    var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
+    ClientResp resp;
+
+    try {
+      resp = await _addRequest(uri, reqMethod.GET);
+    } catch (e) {
+      logger.warning('${_rootUri.host}-- Failed to add Stream Profile.', e);
+      return null;
+    }
+
+    // Example good response: "S4 OK"
+    String body = resp.body;
+    if (resp.status != HttpStatus.OK || body == null || body.isEmpty) {
+      logger.warning('${_rootUri.host}-- Failed to add Stream Profile. ' +
+          'Status: ${resp.status}');
+      return null;
+    }
+
+    return body.split(' ')[0];
   }
 
   Future<bool> updateParameter(String path, String value) async {
