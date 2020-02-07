@@ -16,7 +16,7 @@ main(List<String> args) async {
   link = new LinkProvider(args, "Axis-", autoInitialize: false, profiles: {
     NoticeNode.isType: (String path) => new NoticeNode(path, link),
     NotificationNode.isType: (String path) => new NotificationNode(path),
-    RemoveNotification.isType: (String path) => new RemoveNotification(path),
+    RemoveNotification.isType: (String path) => new RemoveNotification(path, link),
     ResolutionNode.isType: (String path) => new ResolutionNode(path),
     RefreshResolution.isType: (String path) => new RefreshResolution(path),
     PTZCommandNode.isType: (String path) => new PTZCommandNode(path),
