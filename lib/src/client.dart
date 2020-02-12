@@ -353,9 +353,11 @@ class VClient {
   }
 
   Future<bool> removeMotion(String group) async {
+    var groupStr = group.contains('Motion') ? group : 'Motion.$group';
+
     final Map<String, String> map = {
       'action': 'remove',
-      'group': 'Motion.$group'
+      'group': groupStr
     };
     var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
 
@@ -374,6 +376,17 @@ class VClient {
     }
 
     return res;
+  }
+
+  Future<bool> removeMotions(Iterable<String> groups) async {
+    String groupStr = '';
+    var i = 0;
+    for (var g in groups) {
+      groupStr += 'Motion.$g';
+      if (++i <= groups.length - 1) groupStr += ',';
+    }
+
+    return removeMotion(groupStr);
   }
 
   Future<String> addStreamProfile(Map params) async {
@@ -620,6 +633,8 @@ class VClient {
     var ret = (el.text == null || el.text.isEmpty);
     if (ret) {
       _configs.removeWhere((ac) => ac.id == id);
+    } else {
+      logger.warning('Failed to remove action config: $id - "${el.text}"');
     }
     return ret;
   }
@@ -693,6 +708,8 @@ class VClient {
 
     if (ret) {
       _rules.removeWhere((ar) => ar.id == id);
+    } else {
+      logger.warning('Failed to remove action rule: $id - "${el.text}"');
     }
     return ret;
   }

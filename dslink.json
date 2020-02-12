@@ -1,6 +1,6 @@
 {
   "name" : "dslink-dart-vapix",
-  "version" : "1.3.3",
+  "version" : "1.3.4",
   "description" : "Axis DSLink",
   "main" : "bin/run.dart",
   "engines" : {

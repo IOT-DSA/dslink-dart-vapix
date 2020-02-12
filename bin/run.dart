@@ -26,6 +26,7 @@ main(List<String> args) async {
     ParamValue.isType: (String path) => new ParamValue(path),
     EditDevice.isType: (String path) => new EditDevice(path, link),
     RemoveDevice.isType: (String path) => new RemoveDevice(path, link),
+    ResetDevice.isType: (String path) => new ResetDevice(path, link),
     AddWindow.isType: (String path) => new AddWindow(path, link),
     RemoveWindow.isType: (String path) => new RemoveWindow(path, link),
     EventsNode.isType: (String path) => new EventsNode(path),

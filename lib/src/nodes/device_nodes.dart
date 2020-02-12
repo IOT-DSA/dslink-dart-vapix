@@ -169,6 +169,7 @@ class DeviceNode extends SimpleNode implements Device {
         RemoveDevice.pathName: RemoveDevice.definition(),
         RefreshDevice.pathName: RefreshDevice.def(),
         ReconnectDevice.pathName: ReconnectDevice.def(),
+        ResetDevice.pathName: ResetDevice.def(),
         VirtualPortTrigger.pathName: VirtualPortTrigger.def()
       };
 
@@ -265,6 +266,8 @@ class DeviceNode extends SimpleNode implements Device {
 
     CheckNode(provider, '$path/${CheckConnection.pathName}',
         CheckConnection.def());
+
+    CheckNode(provider, '$path/${ResetDevice.pathName}', ResetDevice.def());
   }
 
   void _populateLeds(List<Led> leds) {
@@ -683,5 +686,140 @@ class CheckConnection extends ChildNode {
     }
 
     return {_success: ok};
+  }
+}
+
+//* @Action Reset_Camera
+//* @Is resetCamera
+//* @Parent DeviceNode
+//*
+//* Attempts to reset a camera to clean state.
+//*
+//* This will attempt to reset the camera to a fresh state. This includes
+//* trying to remove any Action Rules, Action Configurations, Motion Windows,
+//* and Virtual Ports. This action will throw on any failure, but continue to
+//* try removing all aspects independent of any prior failures.
+class ResetDevice extends ChildNode {
+  static const String isType = 'resetCamera';
+  static const String pathName = 'Reset_Camera';
+
+  static const String _success = 'success';
+
+  static Map<String, dynamic> def() => {
+    r'$is': isType,
+    r'$name': 'Reset Camera',
+    r'$invokable': 'write',
+    r'$params': [],
+    r'$columns': [
+      {'name': _success, 'type': 'bool', 'default': false}
+    ]
+  };
+
+  final LinkProvider _link;
+
+  ResetDevice(String path, this._link) : super(path);
+
+  @override
+  Future<Map> onInvoke(Map<String, dynamic> params) async {
+    var cl = await getClient();
+
+    if (cl == null) {
+      throw new StateError('Unable to reset camera. Failed to retrieve client');
+    }
+
+    var pPath = parent.path;
+    var rulesPath = '$pPath/${EventsNode.pathName}/alarms/${EventsNode.rulesNd}';
+    await _removeRules(rulesPath, cl);
+
+    var actionsPath = '$pPath/${EventsNode.pathName}/alarms/${EventsNode.actionsNd}';
+    await _removeActions(actionsPath, cl);
+
+    var motionPath = '$pPath/${ParamsNode.pathName}/Motion';
+    await _removeMotions(motionPath, cl);
+
+    _link.save();
+    return {_success: true};
+  }
+
+  Future<Null> _removeRules(String rulesPath, VClient client) async {
+    var rulesNode = provider.getNode(rulesPath);
+    if (rulesNode == null) {
+      logger.warning('Failed to locate rules node for ${parent.path}.');
+      return;
+    }
+    
+    var rules = rulesNode.children.values
+        .where((Node nd) => nd is ActionRuleNode)
+        .toList(growable: false);
+    
+    if (rules.isEmpty) return; // Nothing to do.
+
+    List<Future> futs = <Future>[];
+    for (ActionRuleNode node in rules) {
+      futs.add(client.removeActionRule(node.value)
+          .then((bool ok) { if (ok) node.remove(); })
+      );
+    }
+    try {
+      await Future.wait(futs);
+    } catch (e) {
+      logger.warning('Reset Device - error removing rules', e);
+    }
+
+    logger.finest('Reset Device - Removed rules');
+  }
+
+  Future<Null> _removeActions(String actionsPath, VClient client) async {
+    var actionsNode = provider.getNode(actionsPath);
+    if (actionsNode == null) {
+      logger.warning("Failed to locate actions node for ${parent.path}");
+      return;
+    }
+
+    var actions = actionsNode.children.values
+        .where((Node nd) => nd is ActionConfigNode)
+        .toList(growable: false);
+
+    if (actions.isEmpty) return; // Nothing to do
+
+    List<Future> futs = <Future>[];
+    for (ActionConfigNode node in actions) {
+      futs.add(client.removeActionConfig(node.value)
+          .then((bool ok) { if (ok) node.remove(); })
+      );
+    }
+
+    try {
+      await Future.wait(futs);
+    } catch (e) {
+      logger.warning('Reset Device - error removing actions', e);
+    }
+
+    logger.finest('Reset Device - Removed Actions');
+  }
+
+
+  Future<Null> _removeMotions(String motionPath, VClient client) async {
+    var motionNode = provider.getNode(motionPath);
+
+    if (motionNode == null) {
+      logger.warning("Failed to location motion node for ${parent.path}");
+      return;
+    }
+
+    var windows = motionNode.children.values
+        .where((Node nd) => nd is! AddWindow)
+        .toList(growable: false);
+
+    try {
+      await client.removeMotions(windows.map((SimpleNode nd) => nd.name));
+      for (SimpleNode win in windows) {
+        win.remove();
+      }
+    } catch (e) {
+      logger.warning('Reset Device - error removing motion windows', e);
+    }
+
+    logger.finest('Reset Device - Removed Motion Windows');
   }
 }
