@@ -8,6 +8,7 @@ import 'common.dart';
 import 'events_node.dart';
 import 'param_value.dart';
 import 'window_commands.dart';
+import 'stream_profiles.dart';
 import 'camera_resolution.dart';
 import 'ptz_command_node.dart';
 import 'device_leds.dart';
@@ -178,6 +179,7 @@ class DeviceNode extends SimpleNode implements Device {
   static const String _uri = r'$$ax_uri';
   static const String _sec = r'$$ax_secure';
   static const String _motion = 'Motion';
+  static const String _streamProfile = 'StreamProfile';
   static const String _mjpgUrl = 'mjpgUrl';
   static const String _Leds = 'LEDs';
   static const String _disconnected = 'Disconnected';
@@ -362,6 +364,21 @@ class DeviceNode extends SimpleNode implements Device {
     }
     provider.addNode(
         '${mNode.path}/${AddWindow.pathName}', AddWindow.definition());
+
+    var sNode =
+        provider.getOrCreateNode('$path/${ParamsNode.pathName}/$_streamProfile');
+    if (sNode == null) return;
+
+    //* @Node Stream
+    //* @Parent StreamProfile
+    //*
+    //* Collection of ParamValues that make up the Stream Profile.
+    for (var p in sNode.children.keys) {
+      provider.addNode('${sNode.path}/$p/${RemoveStream.pathName}',
+          RemoveStream.def());
+    }
+    provider.addNode('${sNode.path}/${AddStream.pathName}',
+        AddStream.def(dev.params));
 
     link.save();
   }

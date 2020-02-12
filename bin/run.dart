@@ -44,7 +44,9 @@ main(List<String> args) async {
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link),
     SetLed.isType: (String path) => new SetLed(path),
-    VirtualPortTrigger.isType: (String path) => new VirtualPortTrigger(path)
+    VirtualPortTrigger.isType: (String path) => new VirtualPortTrigger(path),
+    AddStream.isType: (String path) => new AddStream(path, link),
+    RemoveStream.isType: (String path) => new RemoveStream(path, link)
   }, defaultNodes: {
     NoticeNode.pathName: NoticeNode.definition(),
     AddDevice.pathName: AddDevice.definition()

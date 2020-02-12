@@ -17,7 +17,6 @@ class AddStream extends ChildNode {
   static const String _compress = 'compression';
   static const String _rot = 'rotation';
   static const String _success = 'success';
-  static const String _message = 'message';
 
   static Map<String, dynamic> def(Parameters params) => {
     r'$is': isType,
@@ -32,7 +31,6 @@ class AddStream extends ChildNode {
     ],
     r'$columns': [
       { 'name': _success, 'type': 'bool', 'default': false },
-      { 'name': _message, 'type': 'string', 'default': '' }
     ]
   };
 
@@ -42,7 +40,6 @@ class AddStream extends ChildNode {
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
-    final ret = { _success: false, _message : '' };
 
     var cl = await getClient();
     if (cl == null) {
@@ -87,9 +84,62 @@ class AddStream extends ChildNode {
     }
 
     var res = await cl.addStreamProfile(config);
-    // TODO: Continue here
+    if (res == null) return {_success: false};
 
-    return ret;
+    var nd = provider.getOrCreateNode('${parent.path}/$res');
+    for (var key in params.keys) {
+      provider.addNode('${nd.path}/$key',
+          ParamValue.definition(params[key]));
+    }
+
+    provider.addNode('${nd.path}/${RemoveStream.pathName}',
+        RemoveStream.def());
+
+    link.save();
+
+    return {_success: true};
+  }
+}
+
+//* @Action Remove_Stream
+//* @Parent StreamProfile
+//* @Is removeStream
+//*
+//* Remove a Stream Profile from the device.
+//*
+//* @Return values
+//* @Column success bool Success returns true on success. False on failure.
+class RemoveStream extends ChildNode {
+  static const String isType = 'removeStream';
+  static const String pathName = 'Remove_Stream';
+
+  static const String _success = 'success';
+
+  static Map<String, dynamic> def() => {
+    r'$is': isType,
+    r'$name': 'Remove Stream',
+    r'$invokable': 'write',
+    r'$params': [],
+    r'$columns': [
+      { 'name': _success, 'type': 'bool', 'default': false }
+    ]
+  };
+
+  final LinkProvider link;
+  RemoveStream(String path, this.link) : super(path);
+
+  @override
+  Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
+    var cl = await getClient();
+    var nm = parent.name;
+    var ok = await cl.removeStreamProfile(nm);
+
+    if (ok) {
+      parent.remove();
+      link.save();
+    }
+
+    return { _success: ok };
   }
 }
 

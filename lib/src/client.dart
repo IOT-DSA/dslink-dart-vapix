@@ -422,6 +422,32 @@ class VClient {
     return body.split(' ')[0];
   }
 
+  Future<bool> removeStreamProfile(String group) async {
+    var groupStr = group.contains('StreamProfile') ? group : 'StreamProfile.$group';
+
+    final Map<String, String> map = {
+      'action': 'remove',
+      'group': groupStr
+    };
+    var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
+
+    ClientResp resp;
+    try {
+      resp = await _addRequest(uri, reqMethod.GET);
+    } catch (e) {
+      logger.warning('${_rootUri.host} -- Failed to remove motion', e);
+      return false;
+    }
+
+    var res = resp.body.trim().toLowerCase() == 'ok';
+    if (!res) {
+      logger.warning('${_rootUri.host} -- Failed to remove motion window: '
+          '${resp.body}');
+    }
+
+    return res;
+  }
+
   Future<bool> updateParameter(String path, String value) async {
     final Map<String, String> params = {'action': 'update', path: value};
 
