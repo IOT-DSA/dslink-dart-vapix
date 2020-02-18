@@ -332,13 +332,6 @@ class AddActionConfig extends ChildNode {
 
     var cl = await getClient();
 
-    var confs = cl.getConfigs();
-    var exists = confs.firstWhere((ac) =>
-        ac.name.toLowerCase() == name.toLowerCase(), orElse: () => null);
-    if (exists != null) {
-      return ret..[_message] = 'An action with the name "$name" already exists';
-    }
-
     var res = await cl.addActionConfig(cfg);
     if (res == null || res.isEmpty) {
       return ret..[_message] = 'Unable to add action';
@@ -495,22 +488,15 @@ class AddActionRule extends ChildNode {
       return ret..[_message] = 'Rule name cannot be empty';
     }
 
-    var cl = await getClient();
-    var rules = cl.getRules();
-    var exist = rules.firstWhere((ar) =>
-          ar.name.toLowerCase() == name.toLowerCase(), orElse: () => null);
-    if (exist != null) {
-      return ret..[_message] = 'A rule with the name "$name" already exists';
-    }
-
     var enable = params[_enabled] as bool;
 
     var window = (params[_window] as num)?.toInt();
+    var cl = await getClient();
     var me = cl.getMotion();
     var win = me.sources.firstWhere((event) => event.value == '$window',
         orElse: () => null);
     if (win == null) {
-      return ret..[_message] = 'Unable to find a window with ID: $window';
+      throw new StateError('Unable to find a motion window with ID: $window');
     }
 
     var action = (params[_primary] as num)?.toInt();

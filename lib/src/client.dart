@@ -119,10 +119,7 @@ class VClient {
       logger.info('Check connection to ${_rootUri.host} failed:', e);
       ok = false;
       if (onDisconnect != null) {
-        print('onDisconnect is not null');
         onDisconnect(!ok);
-      } else {
-        print("It's null");
       }
       new Future.delayed(const Duration(milliseconds:  500), () => retry(!ok));
       rethrow;
@@ -352,13 +349,85 @@ class VClient {
       return null;
     }
 
-    return resp.body.split(' ')[0];
+    return body.split(' ')[0];
   }
 
   Future<bool> removeMotion(String group) async {
+    var groupStr = group.contains('Motion') ? group : 'Motion.$group';
+
     final Map<String, String> map = {
       'action': 'remove',
-      'group': 'Motion.$group'
+      'group': groupStr
+    };
+    var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
+
+    ClientResp resp;
+    try {
+      resp = await _addRequest(uri, reqMethod.GET);
+    } catch (e) {
+      logger.warning('${_rootUri.host} -- Failed to remove motion', e);
+      return false;
+    }
+
+    var res = resp.body.trim().toLowerCase() == 'ok';
+    if (!res) {
+      logger.warning('${_rootUri.host} -- Failed to remove motion window: '
+          '${resp.body}');
+    }
+
+    return res;
+  }
+
+  Future<bool> removeMotions(Iterable<String> groups) async {
+    String groupStr = '';
+    var i = 0;
+    for (var g in groups) {
+      groupStr += 'Motion.$g';
+      if (++i <= groups.length - 1) groupStr += ',';
+    }
+
+    return removeMotion(groupStr);
+  }
+
+  Future<String> addStreamProfile(Map params) async {
+    final Map<String, String> map = {
+      'action': 'add',
+      'template': 'streamprofile',
+      'group': 'StreamProfile'
+    };
+
+    params.forEach((String k, String v) {
+      var key = 'StreamProfile.S.$k';
+      map[key] = v.toString();
+    });
+
+    var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
+    ClientResp resp;
+
+    try {
+      resp = await _addRequest(uri, reqMethod.GET);
+    } catch (e) {
+      logger.warning('${_rootUri.host}-- Failed to add Stream Profile.', e);
+      return null;
+    }
+
+    // Example good response: "S4 OK"
+    String body = resp.body;
+    if (resp.status != HttpStatus.OK || body == null || body.isEmpty) {
+      logger.warning('${_rootUri.host}-- Failed to add Stream Profile. ' +
+          'Status: ${resp.status}');
+      return null;
+    }
+
+    return body.split(' ')[0];
+  }
+
+  Future<bool> removeStreamProfile(String group) async {
+    var groupStr = group.contains('StreamProfile') ? group : 'StreamProfile.$group';
+
+    final Map<String, String> map = {
+      'action': 'remove',
+      'group': groupStr
     };
     var uri = _rootUri.replace(path: _paramPath, queryParameters: map);
 
@@ -590,6 +659,8 @@ class VClient {
     var ret = (el.text == null || el.text.isEmpty);
     if (ret) {
       _configs.removeWhere((ac) => ac.id == id);
+    } else {
+      logger.warning('Failed to remove action config: $id - "${el.text}"');
     }
     return ret;
   }
@@ -663,6 +734,8 @@ class VClient {
 
     if (ret) {
       _rules.removeWhere((ar) => ar.id == id);
+    } else {
+      logger.warning('Failed to remove action rule: $id - "${el.text}"');
     }
     return ret;
   }

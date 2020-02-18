@@ -30,7 +30,7 @@ class Server {
     _running = true;
     _notices = new StreamController<String>();
     _svr.listen((sock) {
-      var addr = sock.address.address;
+      var addr = sock.remoteAddress.address;
       sock.transform(UTF8.decoder).listen((String str) {
         str = str.trim();
         logger.finest('Socket received string: $str from $addr');

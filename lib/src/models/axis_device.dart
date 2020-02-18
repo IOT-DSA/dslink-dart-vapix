@@ -12,6 +12,8 @@ class Parameters {
   Map<String, dynamic> _map = <String, dynamic>{};
 
   String get numSources => _map['ImageSource']['NbrOfSources'];
+  String get resolutions => _map['Properties']['Image']['Resolution'];
+  String get rotations => _map['Properties']['Image']['Rotation'];
 
   Parameters(String str) {
     var lines = str.split('\n');

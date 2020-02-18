@@ -26,6 +26,7 @@ main(List<String> args) async {
     ParamValue.isType: (String path) => new ParamValue(path),
     EditDevice.isType: (String path) => new EditDevice(path, link),
     RemoveDevice.isType: (String path) => new RemoveDevice(path, link),
+    ResetDevice.isType: (String path) => new ResetDevice(path, link),
     AddWindow.isType: (String path) => new AddWindow(path, link),
     RemoveWindow.isType: (String path) => new RemoveWindow(path, link),
     EventsNode.isType: (String path) => new EventsNode(path),
@@ -43,7 +44,9 @@ main(List<String> args) async {
     RemoveActionConfig.isType: (String path) =>
         new RemoveActionConfig(path, link),
     SetLed.isType: (String path) => new SetLed(path),
-    VirtualPortTrigger.isType: (String path) => new VirtualPortTrigger(path)
+    VirtualPortTrigger.isType: (String path) => new VirtualPortTrigger(path),
+    AddStream.isType: (String path) => new AddStream(path, link),
+    RemoveStream.isType: (String path) => new RemoveStream(path, link)
   }, defaultNodes: {
     NoticeNode.pathName: NoticeNode.definition(),
     AddDevice.pathName: AddDevice.definition()
