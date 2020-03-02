@@ -660,7 +660,7 @@ class VClient {
     if (ret) {
       _configs.removeWhere((ac) => ac.id == id);
     } else {
-      logger.warning('Failed to remove action config: $id - "${el.text}"');
+      logger.warning('${_rootUri.host} - Failed to remove action config: $id - "${el.text}"');
     }
     return ret;
   }
@@ -708,14 +708,14 @@ class VClient {
       var err = fault.first.findAllElements('SOAP-ENV:Text');
       if (err != null && err.isNotEmpty) {
         var msg = err.first.text;
-        logger.info('Add ActionRule failed:\n${doc.toString()}');
+        logger.info('${_rootUri.host} - Add ActionRule failed:\n${doc.toString()}');
         throw new Exception('Remote server error: $msg');
       }
     }
 
     var ruleIds = doc.findAllElements('aa:RuleID');
     if (ruleIds == null || ruleIds.isEmpty) {
-      logger.info('No ruleID found. Failed to add? Data:\n${doc.toString()}');
+      logger.info('${_rootUri.host} - No ruleID found. Failed to add? Data:\n${doc.toString()}');
       return null;
     }
     var el = ruleIds.first;
@@ -735,7 +735,7 @@ class VClient {
     if (ret) {
       _rules.removeWhere((ar) => ar.id == id);
     } else {
-      logger.warning('Failed to remove action rule: $id - "${el.text}"');
+      logger.warning('${_rootUri.host} - Failed to remove action rule: $id - "${el.text}"');
     }
     return ret;
   }

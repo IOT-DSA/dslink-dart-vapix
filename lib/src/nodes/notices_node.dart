@@ -112,13 +112,15 @@ class NoticeNode extends SimpleNode {
     _link.save();
   }
 
-  void receiveNotice(String str) {
-    var ndName = NodeNamer.createName(str.trim());
+  void receiveNotice(Notice note) {
+    var ndName = NodeNamer.createName(note.msg.trim());
     var nd = provider.getNode('$path/$ndName') as NotificationNode;
     if (nd == null) {
-      nd = provider.addNode('$path/$ndName', NotificationNode.definition())
+      nd = provider.addNode('$path/$ndName', NotificationNode.def())
           as NotificationNode;
     }
+    nd.attributes['@origin'] = note.origin;
+    updateList('@origin');
     nd.increment();
   }
 
@@ -164,11 +166,12 @@ class NoticeNode extends SimpleNode {
 //* @Value number write
 class NotificationNode extends SimpleNode {
   static const String isType = 'notificationNode';
-  static Map<String, dynamic> definition() => {
+  static Map<String, dynamic> def() => {
     r'$is': isType,
     r'$type' : 'number',
     r'?value' : 0,
     r'$writable': 'write',
+    r'@origin': '',
     RemoveNotification.pathName: RemoveNotification.def()
   };
 
