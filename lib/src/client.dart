@@ -230,72 +230,72 @@ class VClient {
 
     var numCams = int.parse(device.params.numSources);
 
+    List<PTZCameraCommands> res;
     var futures = new List<Future<PTZCameraCommands>>();
     for (var i = 1; i <= numCams; i++) {
-      final Map<String, String> map = {
-        'info': '1',
-        'camera': i.toString()
-      }; 
+      final Map<String, String> map = {'info': '1', 'camera': '$i'};
 
       var uri = _rootUri.replace(path: _ptzPath, queryParameters: map);
-    
+
       try {
-        futures.add(_addRequest(uri, reqMethod.GET).then((ClientResp resp) {
-          var lines = resp.body.split("\n");
-          bool start = false;
+        futures.add(
+            _addRequest(uri, reqMethod.GET)
+              .then(_getCommands)
+              .then((List<PTZCommand> cmds) => new PTZCameraCommands(cmds, i)));
 
-          List<PTZCommand> commands = [];
-          List<String> queue = [];
-
-          void flushQueue() {
-            if (queue.isEmpty) {
-              return;
-            }
-
-            PTZCommand command = new PTZCommand.fromStrings(queue);
-            if (command != null) {
-              commands.add(command);
-            }
-
-            queue.clear();
-          }
-
-          for (String line in lines) {
-            if (line.startsWith("whoami")) {
-              start = true;
-              continue;
-            }
-
-            if (!start) {
-              continue;
-            }
-
-            // if subcommand or queue is empty, add to queue and continue
-            if (line.startsWith(" ") || line.startsWith("\t") || queue.isEmpty) {
-              queue.add(line);
-              continue;
-            }
-
-            // flush queue, then start anew
-            flushQueue();
-
-            if (line.isNotEmpty) {
-              queue.add(line);
-            }
-          }
-
-          // make sure last command is added
-          flushQueue();
-          
-          return new PTZCameraCommands(commands, i);
-        }));
+        res = await Future.wait(futures);
       } catch (e) {
         logger.warning('${_rootUri.host}-- ' +
             'Failed to check for PTZ commands on camera $i.', e);
       }
     }
 
-    return await Future.wait(futures);
+    return res;
+  }
+
+  Future<List<PTZCommand>> _getCommands(ClientResp resp) async {
+    var lines = resp.body.split("\n");
+    bool foundStart = false;
+
+    List<PTZCommand> commands = [];
+    List<String> queue = [];
+
+    void flushQueue() {
+      if (queue.isEmpty) return;
+
+      PTZCommand command = new PTZCommand.fromStrings(queue);
+      if (command != null) commands.add(command);
+
+      queue.clear();
+    }
+
+    for (String line in lines) {
+      // Ignore leading lines until we reach whoami (should be first command)
+      if (line.startsWith("whoami")) {
+        foundStart = true;
+        continue;
+      }
+
+      // If we haven't hit first command, keep looking
+      if (!foundStart) continue;
+
+      // if subcommand or queue is empty, add to queue and continue
+      if (line.startsWith(" ") || line.startsWith("\t") || queue.isEmpty) {
+        queue.add(line);
+        continue;
+      }
+
+      // flush queue, then start anew
+      flushQueue();
+
+      if (line.isNotEmpty) {
+        queue.add(line);
+      }
+    }
+
+    // make sure last command is added
+    flushQueue();
+    return commands;
   }
 
   Future<bool> runPtzCommand(int cameraId, Map<String, dynamic> params) async {
@@ -660,7 +660,7 @@ class VClient {
     if (ret) {
       _configs.removeWhere((ac) => ac.id == id);
     } else {
-      logger.warning('Failed to remove action config: $id - "${el.text}"');
+      logger.warning('${_rootUri.host} - Failed to remove action config: $id - "${el.text}"');
     }
     return ret;
   }
@@ -708,14 +708,14 @@ class VClient {
       var err = fault.first.findAllElements('SOAP-ENV:Text');
       if (err != null && err.isNotEmpty) {
         var msg = err.first.text;
-        logger.info('Add ActionRule failed:\n${doc.toString()}');
+        logger.info('${_rootUri.host} - Add ActionRule failed:\n${doc.toString()}');
         throw new Exception('Remote server error: $msg');
       }
     }
 
     var ruleIds = doc.findAllElements('aa:RuleID');
     if (ruleIds == null || ruleIds.isEmpty) {
-      logger.info('No ruleID found. Failed to add? Data:\n${doc.toString()}');
+      logger.info('${_rootUri.host} - No ruleID found. Failed to add? Data:\n${doc.toString()}');
       return null;
     }
     var el = ruleIds.first;
@@ -735,7 +735,7 @@ class VClient {
     if (ret) {
       _rules.removeWhere((ar) => ar.id == id);
     } else {
-      logger.warning('Failed to remove action rule: $id - "${el.text}"');
+      logger.warning('${_rootUri.host} - Failed to remove action rule: $id - "${el.text}"');
     }
     return ret;
   }
