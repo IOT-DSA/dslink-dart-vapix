@@ -1,11 +1,63 @@
+import 'ptz_commands.dart';
+import 'device_leds.dart';
+
 class AxisDevice {
   final Uri uri;
-
   Parameters params;
+  List<CameraResolution> resolutions;
+  List<PTZCameraCommands> ptzCommands;
+  List<Led> leds;
 
   AxisDevice(this.uri, String pStr) {
     params = new Parameters(pStr);
   }
+
+  AxisDevice cloneTo(AxisDevice dev) {
+    dev..resolutions = resolutions
+        ..ptzCommands = ptzCommands
+        ..leds = leds;
+    return dev;
+  }
+
+  AxisDevice._(this.uri, this.params, this.resolutions, this.ptzCommands, this.leds);
+
+  factory AxisDevice.fromJson(Map<String, dynamic> map) {
+    var u = Uri.parse(map['uri']);
+    var p = new Parameters.fromJson(map['params']);
+
+    var res = new List<CameraResolution>();
+    if (map['resolutions'] != null) {
+      for (var r in map['resolutions']) {
+        res.add(new CameraResolution.fromJson(r));
+      }
+    }
+
+    var ptzCmds = new List<PTZCameraCommands>();
+    if (map['ptz'] != null) {
+      for (var ptz in map['ptz']) {
+        ptzCmds.add(new PTZCameraCommands.fromJson(ptz));
+      }
+    }
+
+    List<Led> leds;
+    var ledsJson = map['leds'] as List<Map<String, dynamic>>;
+    if (ledsJson != null) {
+      leds = new List<Led>();
+      for (var led in ledsJson) {
+        leds.add(new Led.fromJson(led));
+      }
+    }
+
+    return new AxisDevice._(u, p, res, ptzCmds, leds);
+  }
+
+  Map<String, dynamic> toJson() => {
+    'uri': uri.toString(),
+    'params': params._map,
+    'resolutions': resolutions?.map((CameraResolution res) => res.toJson())?.toList(),
+    'ptz': ptzCommands?.map((PTZCameraCommands cmd) => cmd.toJson())?.toList(),
+    'leds': leds?.map((Led l) => l.toJson())?.toList()
+  };
 }
 
 class Parameters {
@@ -43,8 +95,9 @@ class Parameters {
         }
       }
     }
+  } // End constructor
 
-  }
+  Parameters.fromJson(this._map);
 
   Map<String, dynamic> get map => _map;
 }
@@ -55,4 +108,13 @@ class CameraResolution {
   final num camera;
 
   CameraResolution(this.camera, this.width, this.height);
+  factory CameraResolution.fromJson(Map<String, num> map) {
+    return new CameraResolution(map['camera'], map['width'], map['height']);
+  }
+
+  Map<String, num> toJson() => {
+    'camera': camera,
+    'width': width,
+    'height': height
+  };
 }

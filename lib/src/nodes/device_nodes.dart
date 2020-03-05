@@ -106,7 +106,6 @@ class AddDevice extends SimpleNode {
           ..[_success] = true
           ..[_message] = 'Success!';
         nd = provider.addNode('/$name', DeviceNode.definition(uri, u, p, s));
-        _link.save();
         break;
       case AuthError.notFound:
         ret[_message] = 'Unable to locate device parameters page. '
@@ -178,6 +177,7 @@ class DeviceNode extends SimpleNode implements Device {
   static const String _pass = r'$$password';
   static const String _uri = r'$$ax_uri';
   static const String _sec = r'$$ax_secure';
+  static const String _dev = r'$$ax_device';
   static const String _motion = 'Motion';
   static const String _streamProfile = 'StreamProfile';
   static const String _mjpgUrl = 'mjpgUrl';
@@ -186,6 +186,7 @@ class DeviceNode extends SimpleNode implements Device {
 
   void setDevice(AxisDevice dev) {
     _device = dev;
+
     if (_comp.isCompleted) return;
     _comp.complete(dev);
   }
@@ -212,6 +213,15 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   @override
+  Map save() {
+    var m = super.save();
+    if (_device != null) {
+      m[_dev] = _device.toJson();
+    }
+    return m;
+  }
+
+  @override
   void onCreated() {
     _populateMissing();
 
@@ -219,6 +229,7 @@ class DeviceNode extends SimpleNode implements Device {
     var p = getConfig(_pass);
     var a = getConfig(_uri);
     var s = getConfig(_sec) as bool;
+    var dev = getConfig(_dev);
 
     Uri uri;
     try {
@@ -231,25 +242,45 @@ class DeviceNode extends SimpleNode implements Device {
     _cl = new VClient(uri, u, p, s);
     _cl.onDisconnect = _onDisconnect;
 
-    _cl.authenticate().then((AuthError ae) {
+    if (dev != null) {
+      setDevice(new AxisDevice.fromJson(dev));
+      _cl.device = _device;
+      _populateResolution(_device.resolutions);
+      _populatePTZNodes(_device.ptzCommands);
+      _populateLeds(_device.leds);
+      _populateNodes(_device, toSave: false);
+      // TODO: Populate nodes from here
+      return;
+    }
+
+    _cl.authenticate().then((AuthError ae) async {
       if (ae != AuthError.ok) return null;
 
       _clComp.complete(_cl);
       setDevice(_cl.device);
 
       var evntNode = provider.getNode('$path/${EventsNode.pathName}') as EventsNode;
-      evntNode.updateEvents();
 
-      _cl.getResolutions().then(_populateResolution);
+      var futs = new List<Future>();
+      futs.add(evntNode.updateEvents());
+      futs.add(_cl.getResolutions()
+          .then((List<CameraResolution> res) => this._device.resolutions = res)
+          .then(_populateResolution));
 
       if (_cl.supportsPTZ()) {
-        _cl.getPTZCommands().then(_populatePTZNodes);
+        futs.add(_cl.getPTZCommands()
+            .then((List<PTZCameraCommands> cmds) => this._device.ptzCommands = cmds)
+            .then(_populatePTZNodes));
       }
-      _cl.hasLedControls().then((bool hasControls) {
-        if (hasControls) return _cl.getLeds();
-      }).then(_populateLeds);
+      futs.add(_cl.hasLedControls()
+          .then((bool hasControls) {
+            if (hasControls) return _cl.getLeds();
+          })
+          .then((List<Led> leds) => this._device.leds = leds)
+          .then(_populateLeds));
 
-      return _cl.device;
+      await Future.wait(futs);
+      return _device;
     }).then(_populateNodes);
   }
 
@@ -274,7 +305,8 @@ class DeviceNode extends SimpleNode implements Device {
 
   void _populateLeds(List<Led> leds) {
     if (leds == null || leds.isEmpty) return;
-    var ledNodes = provider.getOrCreateNode('$path/$_Leds');
+    var ledNodes = provider.getOrCreateNode('$path/$_Leds') as SimpleNode;
+    ledNodes.serializable = false;
 
     for (var l in leds) {
       var nm = NodeNamer.createName(l.name);
@@ -307,15 +339,15 @@ class DeviceNode extends SimpleNode implements Device {
     var ptzNode = provider.getOrCreateNode('$path/ptz');
 
     for (PTZCameraCommands commands in commandsList) {
-      var cameraNode = provider.getNode('${ptzNode.path}/${commands.camera}');
-
+      var cameraNode = provider.getNode('${ptzNode.path}/${commands.camera}') as SimpleNode;
       if (cameraNode == null) {
-        provider.addNode("${ptzNode.path}/${commands.camera}", PTZCommandNode.defFactory(commands));
+        cameraNode = provider.addNode("${ptzNode.path}/${commands.camera}", PTZCommandNode.defFactory(commands));
       }
+      cameraNode.serializable = false;
     }
   }
 
-  void _populateNodes(AxisDevice dev) {
+  void _populateNodes(AxisDevice dev, {bool toSave: true}) {
     if (dev == null) return;
 
     void genNodes(Map<String, dynamic> map, String path) {
@@ -323,7 +355,8 @@ class DeviceNode extends SimpleNode implements Device {
         var el = map[key];
         var nm = NodeNamer.createName(key);
         if (el is Map<String, dynamic>) {
-          var nd = provider.getOrCreateNode('$path/$nm');
+          var nd = provider.getOrCreateNode('$path/$nm') as SimpleNode;
+          nd.serializable = false;
           genNodes(el, nd.path);
         } else {
           var nd = provider.getNode('$path/$nm');
@@ -351,8 +384,10 @@ class DeviceNode extends SimpleNode implements Device {
     //*
     //* Collection of Motion detection related parameters.
     var mNode =
-        provider.getOrCreateNode('$path/${ParamsNode.pathName}/$_motion');
+        provider.getOrCreateNode('$path/${ParamsNode.pathName}/$_motion') as SimpleNode;
     if (mNode == null) return;
+
+    mNode.serializable = false;
 
     //* @Node MotionWindow
     //* @Parent Motion
@@ -380,7 +415,7 @@ class DeviceNode extends SimpleNode implements Device {
     provider.addNode('${sNode.path}/${AddStream.pathName}',
         AddStream.def(dev.params));
 
-    link.save();
+    if (toSave) link.save();
   }
 
   Future<AuthError> updateConfig(
@@ -656,6 +691,10 @@ class RefreshDevice extends SimpleNode {
       }
 
       var dev = cl.device;
+      p.setDevice(dev);
+      p._populateResolution(dev.resolutions);
+      p._populatePTZNodes(dev.ptzCommands);
+      p._populateLeds(dev.leds);
       p._populateNodes(dev);
     }));
 

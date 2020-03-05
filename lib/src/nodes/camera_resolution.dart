@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:dslink/dslink.dart' show LinkProvider;
+
 import 'common.dart';
 import '../models/axis_device.dart' show CameraResolution;
 
@@ -15,7 +17,9 @@ class ResolutionNode extends ChildNode {
         _height: {r'$type': 'num', r'?value': res.height}
       };
 
-  ResolutionNode(String path) : super(path);
+  ResolutionNode(String path) : super(path) {
+    serializable = false;
+  }
 }
 
 class RefreshResolution extends ChildNode {
@@ -37,7 +41,9 @@ class RefreshResolution extends ChildNode {
         ]
       };
 
-  RefreshResolution(String path) : super(path);
+  final LinkProvider _link;
+
+  RefreshResolution(String path, this._link) : super(path);
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
@@ -57,9 +63,15 @@ class RefreshResolution extends ChildNode {
     }
 
     var pPath = parent.path;
+
+    var dev = await getDevice();
+    dev.resolutions = resolutions;
+
     for (var res in resolutions) {
       provider.addNode('$pPath/${res.camera}', ResolutionNode.def(res));
     }
+
+    _link.save();
 
     return ret
       ..[_success] = true

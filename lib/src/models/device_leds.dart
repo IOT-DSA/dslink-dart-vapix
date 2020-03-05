@@ -15,6 +15,19 @@ class Led {
       colors.add(new Color.fromXml(el));
     });
   }
+
+  Led.fromJson(Map<String, dynamic> map) {
+    name = map['name'];
+    colors = new List<Color>();
+    for (var c in map['colors']) {
+      colors.add(new Color.fromJson(c));
+    }
+  }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'colors': colors.map((Color c) => c.toJson()).toList()
+  };
 }
 
 class Color {
@@ -31,4 +44,14 @@ class Color {
     var uc = el.findElements('UserControllable')?.first?.text;
     userControllable = uc == 'true';
   }
+
+  Color.fromJson(Map<String, dynamic> map) {
+    name = map['name'];
+    userControllable = map['controlable'];
+  }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'controlable': userControllable
+  };
 }

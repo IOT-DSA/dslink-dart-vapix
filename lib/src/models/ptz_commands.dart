@@ -9,8 +9,19 @@ class PTZCommandParameter {
   final PTZCommandParamType type;
   // only needed if type == ENUM
   final List<String> enumValues;
-
+  
   PTZCommandParameter(this.name, this.type, {this.enumValues : const []});
+
+  factory PTZCommandParameter.fromJson(Map<String, dynamic> map) {
+    var t = PTZCommandParamType.values[map['type']];
+    return new PTZCommandParameter(map['name'], t, enumValues: map['values']);
+  }
+  
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'type': type.index,
+    'values': enumValues
+  };
 }
 
 // just a list that also has access to the camera id
@@ -19,6 +30,22 @@ class PTZCameraCommands {
   final int camera;
 
   PTZCameraCommands(this.commands, this.camera);
+
+  factory PTZCameraCommands.fromJson(Map<String, dynamic> map) {
+    var camId = map['camera'];
+
+    List<PTZCommand> cmds =  new List<PTZCommand>();
+    for (var cm in (map['commands'] as List<Map<String, dynamic>>)) {
+      cmds.add(new PTZCommand.fromJson(cm));
+    }
+
+    return new PTZCameraCommands(cmds, camId);
+  }
+
+  Map<String, dynamic> toJson() => {
+    'camera': camera,
+    'commands': commands.map((PTZCommand cmd) => cmd.toJson()).toList()
+  };
 }
 
 class PTZCommand {
@@ -84,4 +111,24 @@ class PTZCommand {
 
     return new PTZCommand(name, parameters, subCommands: subCommands);
   }
+
+  factory PTZCommand.fromJson(Map<String, dynamic> map) {
+    List<PTZCommandParameter> params = new List<PTZCommandParameter>();
+    for (var p in (map['params'] as List<Map<String, dynamic>>)) {
+      params.add(new PTZCommandParameter.fromJson(p));
+    }
+
+    List<PTZCommand> sub = new List<PTZCommand>();
+    for (var sc in (map['commands'] as List<Map<String, dynamic>>)) {
+      sub.add(new PTZCommand.fromJson(sc));
+    }
+
+    return new PTZCommand(map['name'], params, subCommands: sub);
+  }
+
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'params': parameters.map((PTZCommandParameter cp) => cp.toJson()).toList(),
+    'commands': subCommands.map((PTZCommand c) => c.toJson()).toList()
+  };
 }

@@ -184,7 +184,13 @@ class VClient {
       return _authStatus.future;
     }
 
-    device = new AxisDevice(_rootUri, body);
+    var dev = new AxisDevice(_rootUri, body);
+    if (device != null) {
+      // Copy the resolution, PTZ commands and LEDS
+      device.cloneTo(dev);
+    }
+    device = dev;
+
     _currAuth = AuthState.authenticated;
 
     retry(false);
@@ -574,7 +580,7 @@ class VClient {
     var els = doc.findAllElements('LedCapabilities');
     var list = new List<Led>();
 
-    if (els == null) return list;
+    if (els == null) return null;
     for (var el in els) {
       list.add(new Led.fromXml(el));
     }
@@ -784,6 +790,8 @@ class ReqController {
   final Queue<ClientReq> _queue;
   final Queue<http.Client> _clients;
 
+  int numRequest = 0;
+
   factory ReqController() {
     _singleton ??= new ReqController._();
     if (_singleton._clients.length < 10) {
@@ -871,6 +879,8 @@ class ReqController {
 
     ClientReq req = _queue.removeFirst();
     var client = _clients.removeFirst();
+
+    print("NumRequests: ${++numRequest}");
 
     http.Response resp;
     try {
