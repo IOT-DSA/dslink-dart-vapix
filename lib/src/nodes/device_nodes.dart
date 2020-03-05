@@ -178,6 +178,7 @@ class DeviceNode extends SimpleNode implements Device {
   static const String _pass = r'$$password';
   static const String _uri = r'$$ax_uri';
   static const String _sec = r'$$ax_secure';
+  static const String _dev = r'$$ax_device';
   static const String _motion = 'Motion';
   static const String _streamProfile = 'StreamProfile';
   static const String _mjpgUrl = 'mjpgUrl';
@@ -186,6 +187,7 @@ class DeviceNode extends SimpleNode implements Device {
 
   void setDevice(AxisDevice dev) {
     _device = dev;
+
     if (_comp.isCompleted) return;
     _comp.complete(dev);
   }
@@ -212,6 +214,13 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   @override
+  Map save() {
+    var m = super.save();
+    m[_dev] = _device.toJson();
+    return m;
+  }
+
+  @override
   void onCreated() {
     _populateMissing();
 
@@ -219,6 +228,7 @@ class DeviceNode extends SimpleNode implements Device {
     var p = getConfig(_pass);
     var a = getConfig(_uri);
     var s = getConfig(_sec) as bool;
+    var dev = getConfig(_dev);
 
     Uri uri;
     try {
@@ -231,6 +241,12 @@ class DeviceNode extends SimpleNode implements Device {
     _cl = new VClient(uri, u, p, s);
     _cl.onDisconnect = _onDisconnect;
 
+    if (dev != null) {
+      setDevice(new AxisDevice.fromJson(dev));
+      _cl.device = _device;
+      return;
+    }
+
     _cl.authenticate().then((AuthError ae) {
       if (ae != AuthError.ok) return null;
 
@@ -240,14 +256,21 @@ class DeviceNode extends SimpleNode implements Device {
       var evntNode = provider.getNode('$path/${EventsNode.pathName}') as EventsNode;
       evntNode.updateEvents();
 
-      _cl.getResolutions().then(_populateResolution);
+      _cl.getResolutions()
+          .then((List<CameraResolution> res) => this._device.resolutions = res)
+          .then(_populateResolution);
 
       if (_cl.supportsPTZ()) {
-        _cl.getPTZCommands().then(_populatePTZNodes);
+        _cl.getPTZCommands()
+            .then((List<PTZCameraCommands> cmds) => this._device.ptzCommands = cmds)
+            .then(_populatePTZNodes);
       }
-      _cl.hasLedControls().then((bool hasControls) {
-        if (hasControls) return _cl.getLeds();
-      }).then(_populateLeds);
+      _cl.hasLedControls()
+          .then((bool hasControls) {
+            if (hasControls) return _cl.getLeds();
+          })
+          .then((List<Led> leds) => _device.leds = leds)
+          .then(_populateLeds);
 
       return _cl.device;
     }).then(_populateNodes);

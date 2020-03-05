@@ -14,6 +14,10 @@ import '../soap_message.dart' as soap;
 //*
 //* Collection of event related nodes for the device.
 class EventsNode extends ChildNode implements Events {
+  static const String _motionEvt = r'$$ax_motionEvt';
+  static const String _actRule = r'$$ax_rule';
+  static const String _actConf  = r'$$ax_actions';
+
   static const String isType = 'eventsNode';
   static const String pathName = 'events';
   static const String instances = 'instances';
@@ -70,9 +74,40 @@ class EventsNode extends ChildNode implements Events {
     }
   };
 
-  EventsNode(String path) : super(path);
+  final LinkProvider _link;
+
+  EventsNode(String path, this._link) : super(path);
+
+  MotionEvents events;
+  List<ActionConfig> actionConfigs;
+  List<ActionRule> actionRules;
 
   void onCreated() {
+    var me = getConfig(_motionEvt);
+    var ar = getConfig(_actRule);
+    var ac = getConfig(_actConf);
+
+    if (me != null) {
+      events = new MotionEvents.fromJson(me);
+      _addInstances(events);
+    }
+
+    if (ar != null) {
+      actionRules = new List<ActionRule>();
+      for (var r in ar) {
+        actionRules.add(new ActionRule.fromJson(r));
+      }
+      _addActionRules(actionRules);
+    }
+
+    if (ac != null) {
+      actionConfigs = new List<ActionConfig>();
+      for (var c in ac) {
+        actionConfigs.add(new ActionConfig.fromJson(c));
+      }
+      _addActionConfigs(actionConfigs);
+    }
+
     var nd = provider.getNode('$path/$_alarms/${RefreshActions.pathName}');
     if (nd == null) {
       provider.addNode('$path/$_alarms/${RefreshActions.pathName}',
@@ -92,13 +127,32 @@ class EventsNode extends ChildNode implements Events {
     if (cl == null) return;
 
     await Future.wait([
-        cl.getEventInstances().then(_addInstances),
-        cl.getActionRules().then(_addActionRules),
-        cl.getActionConfigs().then(_addActionConfigs)
+        cl.getEventInstances()
+            .then((MotionEvents evts) => this.events = evts)
+            .then(_addInstances),
+        cl.getActionRules()
+            .then((List<ActionRule> rules) => this.actionRules = rules)
+            .then(_addActionRules),
+        cl.getActionConfigs()
+            .then((List<ActionConfig> cfgs) => this.actionConfigs = cfgs)
+            .then(_addActionConfigs)
     ]);
+
+    _link.save();
+  }
+
+  @override Map save() {
+    var m = super.save();
+    m[_motionEvt] = events.toJson();
+    m[_actRule] = actionRules.map((ActionRule ar) => ar.toJson());
+    m[_actConf] = actionConfigs.map((ActionConfig ac) => ac.toJson());
+
+    return m;
   }
 
   void _addInstances(MotionEvents events) {
+    if (events == null) return;
+
     var instNd = provider.getNode('$path/$instances/$sources');
     if (instNd == null) {
       throw new StateError('Unable to locate instances node');
@@ -109,7 +163,6 @@ class EventsNode extends ChildNode implements Events {
       if (c is EventSourceNode) c.remove();
     }
 
-    if (events == null) return;
     for(var src in events.sources) {
       provider.addNode('$path/$instances/$sources/${src.value}',
           EventSourceNode.definition(src));
@@ -117,6 +170,8 @@ class EventsNode extends ChildNode implements Events {
   }
 
   void _addActionRules(List<ActionRule> rules) {
+    if (rules == null || rules.isEmpty) return;
+
     var arNd = provider.getNode('$path/$_alarms/$rulesNd');
     if (arNd == null) {
       throw new StateError('Unable to locate rules node');
@@ -127,8 +182,6 @@ class EventsNode extends ChildNode implements Events {
       if (c is ActionRuleNode) c.remove();
     }
 
-    if (rules == null) return;
-
     for(var rule in rules) {
       provider.addNode('$path/$_alarms/$rulesNd/${rule.id}',
           ActionRuleNode.definition(rule));
@@ -136,6 +189,8 @@ class EventsNode extends ChildNode implements Events {
   }
 
   void _addActionConfigs(List<ActionConfig> configs) {
+    if (configs == null) return;
+
     var acNd = provider.getNode('$path/$_alarms/$actionsNd');
     if (acNd == null) {
       throw new StateError('Unable to locate config node');
@@ -145,8 +200,6 @@ class EventsNode extends ChildNode implements Events {
     for (var c in chd) {
       if (c is ActionConfigNode) c.remove();
     }
-
-    if (configs == null) return;
 
     for(var config in configs) {
       provider.addNode('$path/$_alarms/$actionsNd/${config.id}',
@@ -310,9 +363,8 @@ class AddActionConfig extends ChildNode {
     var q = (params[_qos] as num)?.toInt();
     if (q == null) q = 0;
 
-    InternetAddress ip;
     try {
-      ip = new InternetAddress(ipStr);
+      new InternetAddress(ipStr);
     } catch (e) {
       return ret..[_message] = 'Unable to parse IP Address: $e';
     }
@@ -853,7 +905,7 @@ class RefreshActions extends ChildNode {
     if (rules == null) return;
 
     var nd = provider.getNode('${parent.path}/$_rules');
-    var list = nd?.children.values.toList();
+    var list = nd?.children?.values?.toList();
     if (list != null) {
       for (var c in list) {
         if (c is ActionRuleNode) c.remove();
