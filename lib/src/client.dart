@@ -188,8 +188,9 @@ class VClient {
     if (device != null) {
       // Copy the resolution, PTZ commands and LEDS
       device.cloneTo(dev);
-      device = dev;
     }
+    device = dev;
+
     _currAuth = AuthState.authenticated;
 
     retry(false);
@@ -789,6 +790,8 @@ class ReqController {
   final Queue<ClientReq> _queue;
   final Queue<http.Client> _clients;
 
+  int numRequest = 0;
+
   factory ReqController() {
     _singleton ??= new ReqController._();
     if (_singleton._clients.length < 10) {
@@ -876,6 +879,8 @@ class ReqController {
 
     ClientReq req = _queue.removeFirst();
     var client = _clients.removeFirst();
+
+    print("NumRequests: ${++numRequest}");
 
     http.Response resp;
     try {

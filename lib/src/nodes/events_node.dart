@@ -143,10 +143,11 @@ class EventsNode extends ChildNode implements Events {
 
   @override Map save() {
     var m = super.save();
-    m[_motionEvt] = events.toJson();
-    m[_actRule] = actionRules.map((ActionRule ar) => ar.toJson());
-    m[_actConf] = actionConfigs.map((ActionConfig ac) => ac.toJson());
-
+    if (events != null) {
+      m[_motionEvt] = events.toJson();
+      m[_actRule] = actionRules?.map((ActionRule ar) => ar.toJson())?.toList();
+      m[_actConf] = actionConfigs?.map((ActionConfig ac) => ac.toJson())?.toList();
+    }
     return m;
   }
 
@@ -256,7 +257,9 @@ class EventSourceNode extends ChildNode {
     },
   };
 
-  EventSourceNode(String path) : super(path);
+  EventSourceNode(String path) : super(path) {
+    serializable = false;
+  }
 }
 
 //* @Action Add_Action
@@ -673,7 +676,9 @@ class ActionRuleNode extends ChildNode {
     return ret;
   }
 
-  ActionRuleNode(String path) : super(path);
+  ActionRuleNode(String path) : super(path) {
+    serializable = false;
+  }
 }
 
 //* @Action Remove_Rule
@@ -791,7 +796,9 @@ class ActionConfigNode extends ChildNode {
     return ret;
   }
 
-  ActionConfigNode(String path) : super(path);
+  ActionConfigNode(String path) : super(path) {
+    serializable = false;
+  }
 }
 
 //* @Action Remove_Config
@@ -868,19 +875,30 @@ class RefreshActions extends ChildNode {
     ]
   };
 
-  RefreshActions(String path) : super(path);
+  final LinkProvider _link;
+
+  RefreshActions(String path, this._link) : super(path);
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = {_success: true, _message: 'Success!'};
 
+    var evNd = provider.getNode(parent.parent.path);
+    if (evNd == null || evNd is! EventsNode) {
+      throw new StateError("unable to find event parent.");
+    }
+
     var cl = await getClient();
     var futs = new List<Future<Null>>();
-    futs.add(cl.getActionConfigs().then(_getConfigs));
-    futs.add(cl.getActionRules().then(_getRules));
+    futs.add(cl.getActionConfigs()
+        .then((List<ActionConfig> cfgs) => (evNd as EventsNode).actionConfigs = cfgs)
+        .then(_getConfigs));
+    futs.add(cl.getActionRules()
+        .then((List<ActionRule> ar) => (evNd as EventsNode).actionRules = ar)
+        .then(_getRules));
 
     await Future.wait(futs);
-
+    _link.save();
     return ret;
   }
 

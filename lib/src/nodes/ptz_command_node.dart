@@ -64,7 +64,9 @@ class PTZCommandNode extends ChildNode {
     return map;
   }
 
-  PTZCommandNode(String path) : super(path);
+  PTZCommandNode(String path) : super(path) {
+    serializable = false;
+  }
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {

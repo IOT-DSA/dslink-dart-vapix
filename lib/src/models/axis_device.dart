@@ -26,13 +26,17 @@ class AxisDevice {
     var p = new Parameters.fromJson(map['params']);
 
     var res = new List<CameraResolution>();
-    for (var r in map['resolutions']) {
-      res.add(new CameraResolution.fromJson(r));
+    if (map['resolutions'] != null) {
+      for (var r in map['resolutions']) {
+        res.add(new CameraResolution.fromJson(r));
+      }
     }
 
     var ptzCmds = new List<PTZCameraCommands>();
-    for (var ptz in map['ptz']) {
-      ptzCmds.add(new PTZCameraCommands.fromJson(ptz));
+    if (map['ptz'] != null) {
+      for (var ptz in map['ptz']) {
+        ptzCmds.add(new PTZCameraCommands.fromJson(ptz));
+      }
     }
 
     List<Led> leds;
@@ -50,9 +54,9 @@ class AxisDevice {
   Map<String, dynamic> toJson() => {
     'uri': uri.toString(),
     'params': params._map,
-    'resolutions': resolutions.map((CameraResolution res) => res.toJson()),
-    'ptz': ptzCommands.map((PTZCameraCommands cmd) => cmd.toJson()),
-    'leds': leds?.map((Led l) => l.toJson())
+    'resolutions': resolutions?.map((CameraResolution res) => res.toJson())?.toList(),
+    'ptz': ptzCommands?.map((PTZCameraCommands cmd) => cmd.toJson())?.toList(),
+    'leds': leds?.map((Led l) => l.toJson())?.toList()
   };
 }
 

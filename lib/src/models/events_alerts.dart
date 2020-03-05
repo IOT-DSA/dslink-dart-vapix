@@ -90,8 +90,10 @@ class ActionRule {
     primaryAction = map['primary'];
     windowId = map['windowId'];
     conditions = new List<Condition>();
-    for (var c in (map['conditions'] as List<Map<String,String>>)) {
-      conditions.add(new Condition(c['topic'], c['message']));
+    if (map['conditions'] != null) {
+      for (var c in (map['conditions'] as List<Map<String, String>>)) {
+        conditions.add(new Condition(c['topic'], c['message']));
+      }
     }
   }
 

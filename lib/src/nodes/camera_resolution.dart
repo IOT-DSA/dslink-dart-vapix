@@ -17,7 +17,9 @@ class ResolutionNode extends ChildNode {
         _height: {r'$type': 'num', r'?value': res.height}
       };
 
-  ResolutionNode(String path) : super(path);
+  ResolutionNode(String path) : super(path) {
+    serializable = false;
+  }
 }
 
 class RefreshResolution extends ChildNode {
