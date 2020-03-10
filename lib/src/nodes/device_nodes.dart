@@ -311,7 +311,7 @@ class DeviceNode extends SimpleNode implements Device {
     for (var l in leds) {
       var nm = NodeNamer.createName(l.name);
       var lNode = provider.getNode('${ledNodes.path}/$nm') as SimpleNode;
-      if (lNode != null) lNode.remove();
+      if (lNode != null) RemoveNode(provider, lNode);
 
       lNode = provider.getOrCreateNode('${ledNodes.path}/$nm');
       provider.addNode('${lNode.path}/${SetLed.pathName}', SetLed.def(l));
@@ -373,9 +373,10 @@ class DeviceNode extends SimpleNode implements Device {
     if (p == null) {
       throw new StateError('Unable to locate parameters node');
     }
+
     var chd = p.children.values.toList();
     for (var c in chd) {
-      if (c is SimpleNode) c.remove();
+      RemoveNode(provider, c);
     }
 
     genNodes(dev.params.map, p.path);
@@ -600,7 +601,7 @@ class RemoveDevice extends SimpleNode {
     final ret = {_success: true, _message: 'Success!'};
 
     (parent as DeviceNode)._cl?.clearConn();
-    parent.remove();
+    RemoveNode(provider, parent);
     _link.save();
 
     return ret;
@@ -812,8 +813,9 @@ class ResetDevice extends ChildNode {
 
     List<Future> futs = <Future>[];
     for (ActionRuleNode node in rules) {
-      futs.add(client.removeActionRule(node.value)
-          .then((bool ok) { if (ok) node.remove(); })
+      futs.add(
+          client.removeActionRule(node.value)
+            .then((bool ok) { if (ok) RemoveNode(provider, node); })
       );
     }
     try {
@@ -841,7 +843,7 @@ class ResetDevice extends ChildNode {
     List<Future> futs = <Future>[];
     for (ActionConfigNode node in actions) {
       futs.add(client.removeActionConfig(node.value)
-          .then((bool ok) { if (ok) node.remove(); })
+          .then((bool ok) { if (ok) RemoveNode(provider, node); })
       );
     }
 
@@ -870,7 +872,7 @@ class ResetDevice extends ChildNode {
     try {
       await client.removeMotions(windows.map((SimpleNode nd) => nd.name));
       for (SimpleNode win in windows) {
-        win.remove();
+        RemoveNode(provider, win);
       }
     } catch (e) {
       logger.warning('Reset Device - error removing motion windows', e);

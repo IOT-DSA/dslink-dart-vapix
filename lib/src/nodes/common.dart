@@ -44,3 +44,14 @@ void CheckNode(SimpleNodeProvider provider, String path, Map<String, dynamic> ma
 
   provider.addNode(path, map);
 }
+
+void RemoveNode(SimpleNodeProvider provider, SimpleNode node) {
+  if (node == null || provider == null) return;
+
+  var childs = node.children.keys.toList();
+  for (var cPath in childs) {
+    RemoveNode(provider, provider.getNode(node.path + '/$cPath'));
+  }
+
+  provider.removeNode(node.path, recurse: false);
+}

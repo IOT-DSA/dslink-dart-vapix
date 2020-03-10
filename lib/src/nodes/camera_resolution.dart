@@ -59,7 +59,7 @@ class RefreshResolution extends ChildNode {
 
     var childs = parent.children.values.toList();
     for (var ch in childs) {
-      if (ch is ResolutionNode) ch.remove();
+      if (ch is ResolutionNode) RemoveNode(provider, ch);
     }
 
     var pPath = parent.path;

@@ -1,6 +1,7 @@
 import 'package:dslink/dslink.dart';
 import 'package:dslink/nodes.dart' show NodeNamer;
 
+import 'common.dart';
 import '../server.dart';
 
 //* @Node Notices
@@ -217,7 +218,7 @@ class RemoveNotification extends SimpleNode {
 
   @override
   Map<String, bool> onInvoke(Map<String, dynamic> params) {
-    parent.remove();
+    RemoveNode(provider, parent);
 
     _link.save();
 

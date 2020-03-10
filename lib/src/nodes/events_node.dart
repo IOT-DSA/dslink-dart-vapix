@@ -161,7 +161,7 @@ class EventsNode extends ChildNode implements Events {
 
     var chd = instNd.children.values.toList();
     for (var c in chd) {
-      if (c is EventSourceNode) c.remove();
+      if (c is EventSourceNode) RemoveNode(provider, c);
     }
 
     for(var src in events.sources) {
@@ -180,7 +180,7 @@ class EventsNode extends ChildNode implements Events {
 
     var chd = arNd.children.values.toList();
     for (var c in chd) {
-      if (c is ActionRuleNode) c.remove();
+      if (c is ActionRuleNode) RemoveNode(provider, c);
     }
 
     for(var rule in rules) {
@@ -199,7 +199,7 @@ class EventsNode extends ChildNode implements Events {
 
     var chd = acNd.children.values.toList();
     for (var c in chd) {
-      if (c is ActionConfigNode) c.remove();
+      if (c is ActionConfigNode) RemoveNode(provider, c);
     }
 
     for(var config in configs) {
@@ -727,7 +727,7 @@ class RemoveActionRule extends ChildNode {
     ret[_success] = await cl.removeActionRule(id);
     if (ret[_success]) {
       ret[_message] = 'Success!';
-      parent.remove();
+      RemoveNode(provider, parent);
       _link.save();
     } else {
       ret[_message] = 'Unable to remove Action Rule ID: $id';
@@ -844,7 +844,7 @@ class RemoveActionConfig extends ChildNode {
 
     if (ret[_success]) {
       ret[_message] = 'Success!';
-      parent.remove();
+      RemoveNode(provider, parent);
       _link.save();
     } else {
       ret[_message] = 'Unable to remove Action Config ID: $id';
@@ -909,7 +909,7 @@ class RefreshActions extends ChildNode {
     var list = nd?.children?.values?.toList();
     if (list != null) {
       for (var c in list) {
-        if (c is ActionConfigNode) c.remove();
+        if (c is ActionConfigNode) RemoveNode(provider, c);
       }
     }
 
@@ -926,7 +926,7 @@ class RefreshActions extends ChildNode {
     var list = nd?.children?.values?.toList();
     if (list != null) {
       for (var c in list) {
-        if (c is ActionRuleNode) c.remove();
+        if (c is ActionRuleNode) RemoveNode(provider, c);
       }
     }
 
