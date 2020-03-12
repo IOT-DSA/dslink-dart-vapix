@@ -126,7 +126,11 @@ class VClient {
       }
     }
 
-    return ok;
+    if (ok && _retryTimer != null && _retryTimer.isActive) {
+      _retryTimer.cancel();
+      _retryDur = null;
+    }
+      return ok;
   }
 
   // Try authenticate and load the parameters for the device.
