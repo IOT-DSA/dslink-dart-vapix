@@ -118,11 +118,12 @@ class VClient {
     } catch (e) {
       logger.info('Check connection to ${_rootUri.host} failed:', e);
       ok = false;
+      new Future.delayed(const Duration(milliseconds:  500), () => retry(!ok));
+      rethrow;
+    } finally {
       if (onDisconnect != null) {
         onDisconnect(!ok);
       }
-      new Future.delayed(const Duration(milliseconds:  500), () => retry(!ok));
-      rethrow;
     }
 
     return ok;

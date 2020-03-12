@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import 'common.dart';
+import 'package:dslink/dslink.dart';
+import 'device_nodes.dart';
 
-class VirtualPortTrigger extends ChildNode {
+class VirtualPortTrigger extends SimpleNode {
   static const String isType = 'virtualPortTrigger';
   static const String pathName = 'Virtual_Ports';
 
@@ -35,7 +36,7 @@ class VirtualPortTrigger extends ChildNode {
     }
 
     bool active = params[_state];
-    var cl = await getClient();
+    var cl = await (parent as DeviceNode).client;
     var res = await cl.setVirtualPort(pNum, active);
 
     if (res) return { _success: true, _message: 'Success!' };

@@ -169,8 +169,9 @@ class DeviceNode extends SimpleNode implements Device {
         RemoveDevice.pathName: RemoveDevice.definition(),
         RefreshDevice.pathName: RefreshDevice.def(),
         ReconnectDevice.pathName: ReconnectDevice.def(),
-        ResetDevice.pathName: ResetDevice.def(),
-        VirtualPortTrigger.pathName: VirtualPortTrigger.def()
+        VirtualPortTrigger.pathName: VirtualPortTrigger.def(),
+        CheckConnection.pathName: CheckConnection.def(),
+        ResetDevice.pathName: ResetDevice.def()
       };
 
   static const String _user = r'$$ax_user';
@@ -714,7 +715,7 @@ class RefreshDevice extends SimpleNode {
 //* This will perform a quick test of the connection to the camera, no more than
 //* approximately 5 seconds. To verify that the device is online. This action
 //* will throw an error if it is unable to connect to the camera.
-class CheckConnection extends ChildNode {
+class CheckConnection extends SimpleNode {
   static const String isType = 'checkConnection';
   static const String pathName = 'Check_Connection';
 
@@ -734,7 +735,7 @@ class CheckConnection extends ChildNode {
 
   @override
   Future<Map<String, bool>> onInvoke(Map<String, dynamic> params) async {
-    var client = await getClient();
+    var client = await(parent as DeviceNode).client;
     bool ok = false;
     try {
       ok = await client.checkConnection();
@@ -756,7 +757,7 @@ class CheckConnection extends ChildNode {
 //* trying to remove any Action Rules, Action Configurations, Motion Windows,
 //* and Virtual Ports. This action will throw on any failure, but continue to
 //* try removing all aspects independent of any prior failures.
-class ResetDevice extends ChildNode {
+class ResetDevice extends SimpleNode {
   static const String isType = 'resetCamera';
   static const String pathName = 'Reset_Camera';
 
@@ -778,7 +779,7 @@ class ResetDevice extends ChildNode {
 
   @override
   Future<Map> onInvoke(Map<String, dynamic> params) async {
-    var cl = await getClient();
+    var cl = await (parent as DeviceNode).client;
 
     if (cl == null) {
       throw new StateError('Unable to reset camera. Failed to retrieve client');
