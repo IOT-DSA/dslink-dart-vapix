@@ -154,12 +154,17 @@ class EventsNode extends ChildNode implements Events {
   void _addInstances(MotionEvents events) {
     if (events == null) return;
 
-    var instNd = provider.getNode('$path/$instances/$sources');
+    var instNd = provider.getOrCreateNode('$path/$instances');
     if (instNd == null) {
       throw new StateError('Unable to locate instances node');
     }
 
-    var chd = instNd.children.values.toList();
+    var sourcesNd = provider.getOrCreateNode('${instNd.path}/$sources');
+    if (sourcesNd == null) {
+      throw new StateError('Unable to locate instance sources node');
+    }
+
+    var chd = sourcesNd.children.values.toList();
     for (var c in chd) {
       if (c is EventSourceNode) RemoveNode(provider, c);
     }
@@ -173,7 +178,12 @@ class EventsNode extends ChildNode implements Events {
   void _addActionRules(List<ActionRule> rules) {
     if (rules == null || rules.isEmpty) return;
 
-    var arNd = provider.getNode('$path/$_alarms/$rulesNd');
+    var alarmNode = provider.getOrCreateNode('$path/$_alarms');
+    if (alarmNode == null) {
+      throw new StateError('Unable to locate alarm node');
+    }
+
+    var arNd = provider.getOrCreateNode('${alarmNode.path}/$rulesNd');
     if (arNd == null) {
       throw new StateError('Unable to locate rules node');
     }
@@ -191,6 +201,11 @@ class EventsNode extends ChildNode implements Events {
 
   void _addActionConfigs(List<ActionConfig> configs) {
     if (configs == null) return;
+
+    var alarmNode = provider.getOrCreateNode('$path/$_alarms');
+    if (alarmNode == null) {
+      throw new StateError('Unable to locate alarm node');
+    }
 
     var acNd = provider.getNode('$path/$_alarms/$actionsNd');
     if (acNd == null) {

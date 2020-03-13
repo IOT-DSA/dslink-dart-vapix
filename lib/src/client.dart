@@ -770,10 +770,13 @@ class VClient {
 
     xml.XmlDocument doc;
     try {
+      if (resp.body == null || resp.body.isEmpty) {
+        throw new StateError('XML Soap response was empty.');
+      }
       doc = xml.parse(resp.body);
     } catch (e) {
       logger.warning(
-          '${_rootUri.host} -- Failed to parse results: '
+          '${_rootUri.host} -- $header -- Failed to parse results: '
           '${resp.body}',
           e);
       return null;

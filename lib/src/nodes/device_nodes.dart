@@ -273,10 +273,7 @@ class DeviceNode extends SimpleNode implements Device {
             .then((List<PTZCameraCommands> cmds) => this._device.ptzCommands = cmds)
             .then(_populatePTZNodes));
       }
-      futs.add(_cl.hasLedControls()
-          .then((bool hasControls) {
-            if (hasControls) return _cl.getLeds();
-          })
+      futs.add(_cl.getLeds()
           .then((List<Led> leds) => this._device.leds = leds)
           .then(_populateLeds));
 
@@ -305,10 +302,10 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   void _populateLeds(List<Led> leds) {
-    if (leds == null || leds.isEmpty) return;
     var ledNodes = provider.getOrCreateNode('$path/$_Leds') as SimpleNode;
     ledNodes.serializable = false;
 
+    if (leds == null || leds.isEmpty) return;
     for (var l in leds) {
       var nm = NodeNamer.createName(l.name);
       var lNode = provider.getNode('${ledNodes.path}/$nm') as SimpleNode;
@@ -330,6 +327,8 @@ class DeviceNode extends SimpleNode implements Device {
           RefreshResolution.def());
     }
 
+    if (resolutions == null) return;
+
     for (var res in resolutions) {
       provider.addNode(
           '${resNode.path}/${res.camera}', ResolutionNode.def(res));
@@ -338,6 +337,8 @@ class DeviceNode extends SimpleNode implements Device {
 
   void _populatePTZNodes(List<PTZCameraCommands> commandsList) {
     var ptzNode = provider.getOrCreateNode('$path/ptz');
+
+    if (commandsList == null) return;
 
     for (PTZCameraCommands commands in commandsList) {
       var cameraNode = provider.getNode('${ptzNode.path}/${commands.camera}') as SimpleNode;
@@ -454,13 +455,33 @@ class DeviceNode extends SimpleNode implements Device {
     return res;
   }
 
+  void _loadDevice() {
+    if (_device != null) return;
+    var dev = getConfig(_dev);
+    if (dev != null) {
+      setDevice(new AxisDevice.fromJson(dev));
+      _cl.device = _device;
+    }
+  }
+
   void _onDisconnect(bool disconnected) {
     provider.updateValue('$path/$_disconnected', disconnected);
     if (!disconnected) {
+      // Set children as active again.
       children.values.where((nd) => nd is ChildNode).forEach((ChildNode nd) {
         nd.disconnected = null;
+        if (nd is EventsNode) {
+          // Reinitialize events node to make sure it's not missing nodes.
+          nd.onCreated();
+        }
       });
+
+      _loadDevice();
+      if (_device != null) {
+        _populateNodes(_device, toSave: false);
+      }
     } else {
+      // Set as disconnected and disable the nodes.
       children.values
           .where((nd) => nd is ChildNode && nd.disconnected == null)
           .forEach((nd) {
