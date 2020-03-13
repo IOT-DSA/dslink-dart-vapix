@@ -58,7 +58,6 @@ class EventsNode extends ChildNode implements Events {
       //* @Parent alarms
       //*
       //* Collection of rules that define when an action should be triggered.
-      RefreshActions.pathName: RefreshActions.definition(),
       rulesNd: {
         AddActionRule.pathName: AddActionRule.definition(),
         AddVirtualRule.pathName: AddVirtualRule.def()
@@ -71,7 +70,8 @@ class EventsNode extends ChildNode implements Events {
       actionsNd: {
         AddActionConfig.pathName: AddActionConfig.definition()
       }
-    }
+    },
+    RefreshEvents.pathName: RefreshEvents.def()
   };
 
   final LinkProvider _link;
@@ -108,10 +108,13 @@ class EventsNode extends ChildNode implements Events {
       _addActionConfigs(actionConfigs);
     }
 
-    var nd = provider.getNode('$path/$_alarms/${RefreshActions.pathName}');
+    // (node has been moved, remove old one if it exist)
+    var nd = provider.getNode('$path/$_alarms/${RefreshEvents.pathName}') as RefreshEvents;
+    if (nd != null) nd.remove();
+    // And put in the correct location.
+    nd = provider.getNode('$path/${RefreshEvents.pathName}') as RefreshEvents;
     if (nd == null) {
-      provider.addNode('$path/$_alarms/${RefreshActions.pathName}',
-          RefreshActions.definition());
+      provider.addNode('$path/${RefreshEvents.pathName}', RefreshEvents.def());
     }
 
     nd = provider.getNode('$path/$_alarms/$rulesNd/${AddVirtualRule.pathName}');
@@ -869,7 +872,7 @@ class RemoveActionConfig extends ChildNode {
   }
 }
 
-class RefreshActions extends ChildNode {
+class RefreshEvents extends ChildNode {
   static const String isType = 'refreshActions';
   static const String pathName = 'Refresh';
 
@@ -879,7 +882,7 @@ class RefreshActions extends ChildNode {
   static const String _success = 'success';
   static const String _message = 'message';
 
-  static Map<String, dynamic> definition() => {
+  static Map<String, dynamic> def() => {
     r'$is': isType,
     r'$name': 'Refresh',
     r'$invokable': 'write',
@@ -892,62 +895,17 @@ class RefreshActions extends ChildNode {
 
   final LinkProvider _link;
 
-  RefreshActions(String path, this._link) : super(path);
+  RefreshEvents(String path, this._link) : super(path);
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = {_success: true, _message: 'Success!'};
 
-    var evNd = provider.getNode(parent.parent.path);
-    if (evNd == null || evNd is! EventsNode) {
-      throw new StateError("unable to find event parent.");
-    }
+    var evNd = parent as EventsNode;
+    await evNd.updateEvents();
 
-    var cl = await getClient();
-    var futs = new List<Future<Null>>();
-    futs.add(cl.getActionConfigs()
-        .then((List<ActionConfig> cfgs) => (evNd as EventsNode).actionConfigs = cfgs)
-        .then(_getConfigs));
-    futs.add(cl.getActionRules()
-        .then((List<ActionRule> ar) => (evNd as EventsNode).actionRules = ar)
-        .then(_getRules));
-
-    await Future.wait(futs);
     _link.save();
     return ret;
   }
 
-  void _getConfigs(List<ActionConfig> configs) {
-    if (configs == null) return;
-
-    var nd = provider.getNode('${parent.path}/$_actions');
-    var list = nd?.children?.values?.toList();
-    if (list != null) {
-      for (var c in list) {
-        if (c is ActionConfigNode) RemoveNode(provider, c);
-      }
-    }
-
-    for(var config in configs) {
-      provider.addNode('${parent.path}/$_actions/${config.id}',
-          ActionConfigNode.definition(config));
-    }
-  }
-
-  void _getRules(List<ActionRule> rules) {
-    if (rules == null) return;
-
-    var nd = provider.getNode('${parent.path}/$_rules');
-    var list = nd?.children?.values?.toList();
-    if (list != null) {
-      for (var c in list) {
-        if (c is ActionRuleNode) RemoveNode(provider, c);
-      }
-    }
-
-    for(var rule in rules) {
-      provider.addNode('${parent.path}/$_rules/${rule.id}',
-          ActionRuleNode.definition(rule));
-    }
-  }
 }

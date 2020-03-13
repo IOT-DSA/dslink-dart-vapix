@@ -530,8 +530,14 @@ class VClient {
     var errs = doc.findAllElements('GeneralError');
     if (errs != null && errs.isNotEmpty) {
       var err = errs.first;
-      var errCode = err.findElements('ErrorCode')?.first?.text;
-      var errDesc = err.findElements('ErrorDescription')?.first?.text;
+      String errCode, errDesc;
+      try {
+        errCode = err.findElements('ErrorCode')?.first?.text;
+        errDesc = err.findElements('ErrorDescription')?.first?.text;
+      } on StateError catch(e) {
+        logger.info('${_rootUri.host} - SetVirtPort Errors. Failed to find error $errs', e);
+      }
+
       throw new Exception('$errCode - $errDesc');
     }
 
@@ -540,8 +546,13 @@ class VClient {
       throw new StateError('Response did not contain StateChange or error');
     }
 
-    var stateChange = states.first;
-    return stateChange.text.trim().toLowerCase() == 'true';
+    try {
+      var stateChange = states.first;
+      return stateChange.text.trim().toLowerCase() == 'true';
+    } on StateError catch(e) {
+      logger.info('${_rootUri.host} - SetVirtPort failed to find stateChange', e);
+      return false;
+    }
   }
 
   //***************************************
@@ -555,9 +566,20 @@ class VClient {
     var els = doc.findAllElements('tnsaxis:MotionDetection');
     if (els == null || els.isEmpty) {
       els = doc.findAllElements('tnsaxis:VMD3');
-      if (els == null || els.isEmpty) return null;
+      if (els == null || els.isEmpty) {
+        logger.info('${_rootUri.host} GetEventInstances - no instances found');
+        return null;
+      }
     }
-    var me = new MotionEvents(els.first);
+
+    MotionEvents me;
+    try {
+      me = new MotionEvents(els.first);
+    } on StateError catch(e) {
+      logger.info('${_rootUri.host} - GetEventInstances failed to get first events', e);
+      return null;
+    }
+
     _motionEvents = me;
     return me;
   }
@@ -605,7 +627,13 @@ class VClient {
     var templates = await getActionTemplates();
 
     for (var t in templates) {
-      var token = t.findElements('aa:TemplateToken')?.first;
+      xml.XmlElement token;
+      try {
+        token = t.findElements('aa:TemplateToken')?.first;
+      } on StateError catch(e) {
+        logger.info('${_rootUri.host} - HasLedControls - ' +
+            'Could not find TemplateToken: $templates', e);
+      }
       if (token == null) continue;
       if (token.text == 'com.axis.action.unlimited.ledcontrol') return true;
     }
@@ -617,7 +645,15 @@ class VClient {
     var doc = await _soapRequest(soap.addActionConfig(ac), soap.headerAAC);
 
     if (doc == null) return null;
-    var el = doc.findAllElements('aa:ConfigurationID')?.first;
+
+    xml.XmlElement el;
+    try {
+      el = doc.findAllElements('aa:ConfigurationID')?.first;
+    } on StateError catch(e) {
+      logger.info('${_rootUri.host} - SetLedColor - ' +
+          'Could not find ConfId: $doc', e);
+    }
+
     if (el == null) return null;
     ac.id = el.text;
     _configs.add(ac);
@@ -633,15 +669,25 @@ class VClient {
     if (configs == null || configs.isEmpty) return res;
 
     for (var c in configs) {
-      var id = c.findElements('aa:ConfigurationID')?.first?.text;
-      var nm = c.findElements('aa:Name')?.first?.text;
-      var tt = c.findElements('aa:TemplateToken')?.first?.text;
+
+      String id, nm, tt;
+      try {
+        id = c.findElements('aa:ConfigurationID')?.first?.text;
+        nm = c.findElements('aa:Name')?.first?.text;
+        tt = c.findElements('aa:TemplateToken')?.first?.text;
+      } on StateError catch(e) {
+        logger.info('${_rootUri.host} - GetActionConfig - ' +
+            'Could not find expected elements: $doc', e);
+      }
+
       var config = new ActionConfig(nm, id, tt);
       var params = c.findAllElements('aa:Parameter');
-      for (var p in params) {
-        var val = p.getAttribute('Value');
-        var name = p.getAttribute('Name');
-        config.params.add(new ConfigParams(name, val));
+      if (params != null) {
+        for (var p in params) {
+          var val = p.getAttribute('Value');
+          var name = p.getAttribute('Name');
+          config.params.add(new ConfigParams(name, val));
+        }
       }
       res.add(config);
     }
@@ -653,7 +699,15 @@ class VClient {
     var doc = await _soapRequest(soap.addActionConfig(ac), soap.headerAAC);
 
     if (doc == null) return null;
-    var el = doc.findAllElements('aa:ConfigurationID')?.first;
+
+    xml.XmlElement el;
+    try {
+      el = doc.findAllElements('aa:ConfigurationID')?.first;
+    } on StateError catch (e) {
+      logger.info('${_rootUri.host} - AddActionConfig - ' +
+          'Could not find ConfigID: $doc', e);
+    }
+
     if (el == null) return null;
     ac.id = el.text;
     _configs.add(ac);
@@ -662,9 +716,16 @@ class VClient {
 
   Future<bool> removeActionConfig(String id) async {
     var doc = await _soapRequest(soap.removeActionConfigs(id), soap.headerRAC);
-
     if (doc == null) return false;
-    var el = doc.findAllElements('aa:RemoveActionConfigurationResponse')?.first;
+
+    xml.XmlElement el;
+    try {
+      el = doc.findAllElements('aa:RemoveActionConfigurationResponse')?.first;
+    } on StateError catch (e) {
+      logger.info('${_rootUri.host} - RemoveActionConfig - ' +
+          'Could not find R.A.C.Response: $doc', e);
+    }
+
     if (el == null) return false;
 
     var ret = (el.text == null || el.text.isEmpty);
@@ -684,17 +745,30 @@ class VClient {
     var res = new List<ActionRule>();
     if (rules == null || rules.isEmpty) return res;
 
+    String id, nm, pa;
+    bool en;
     for (var r in rules) {
-      var id = r.findElements('aa:RuleID')?.first?.text;
-      var nm = r.findElements('aa:Name')?.first?.text;
-      var en = r.findElements('aa:Enabled')?.first?.text == 'true';
-      var pa = r.findElements('aa:PrimaryAction')?.first?.text;
+      try {
+        id = r.findElements('aa:RuleID')?.first?.text;
+        nm = r.findElements('aa:Name')?.first?.text;
+        en = r.findElements('aa:Enabled')?.first?.text == 'true';
+        pa = r.findElements('aa:PrimaryAction')?.first?.text;
+      } on StateError catch(e) {
+        logger.info('${_rootUri.host} - GetActionRules - ' +
+            'Could not find expected element: $doc', e);
+      }
       var rule = new ActionRule(id, nm, en, pa);
       var conds = r.findAllElements('aa:Condition');
       if (conds != null && conds.isNotEmpty) {
         for (var c in conds) {
-          var top = c.findElements('wsnt:TopicExpression')?.first?.text;
-          var msg = c.findElements('wsnt:MessageContent')?.first?.text;
+          String top, msg;
+          try {
+            top = c.findElements('wsnt:TopicExpression')?.first?.text;
+            msg = c.findElements('wsnt:MessageContent')?.first?.text;
+          } on StateError catch(e) {
+            logger.info('${_rootUri.host} - GetActionRules - ' +
+                'Could not find expected element: $doc', e);
+          }
           rule.conditions.add(new Condition(top, msg));
         }
       }
@@ -716,9 +790,22 @@ class VClient {
 
     var fault = doc.findAllElements('SOAP-ENV:Fault');
     if (fault != null && fault.isNotEmpty) {
-      var err = fault.first.findAllElements('SOAP-ENV:Text');
+
+      Iterable<xml.XmlElement> err;
+      try {
+        err = fault.first.findAllElements('SOAP-ENV:Text');
+      } on StateError catch(e) {
+        logger.info('${_rootUri.host} - AddActionRule - error finding error: $doc', e);
+        throw new Exception('Remote server error');
+      }
+
       if (err != null && err.isNotEmpty) {
-        var msg = err.first.text;
+
+        String msg;
+        try {
+          msg = err.first.text;
+        } on StateError catch(_) {} // Ignore error since we log it anyways.
+
         logger.info('${_rootUri.host} - Add ActionRule failed:\n${doc.toString()}');
         throw new Exception('Remote server error: $msg');
       }
@@ -729,7 +816,14 @@ class VClient {
       logger.info('${_rootUri.host} - No ruleID found. Failed to add? Data:\n${doc.toString()}');
       return null;
     }
-    var el = ruleIds.first;
+
+    xml.XmlElement el;
+    try {
+      el = ruleIds.first;
+    } on StateError catch(e) {
+      logger.info('${_rootUri.host} - Add ActionRule failed:\n${doc.toString()}', e);
+      return null;
+    }
     ar.id = el.text;
     _rules.add(ar);
     return el.text;
@@ -737,9 +831,15 @@ class VClient {
 
   Future<bool> removeActionRule(String id) async {
     var doc = await _soapRequest(soap.removeActionRule(id), soap.headerRAR);
-
     if (doc == null) return false;
-    var el = doc.findAllElements('aa:RemoveActionRuleResponse')?.first;
+
+    xml.XmlElement el;
+    try {
+      el = doc.findAllElements('aa:RemoveActionRuleResponse')?.first;
+    } on StateError catch(e) {
+      logger.info('${_rootUri.host} - RemoveActionRule failed:\n${doc.toString()}', e);
+    }
+
     if (el == null) return null;
     var ret = (el.text == null || el.text.isEmpty);
 
@@ -885,6 +985,11 @@ class ReqController {
 
     ClientReq req = _queue.removeFirst();
     var client = _clients.removeFirst();
+
+    String action = "NO SOAP";
+    if (req.headers != null) action = req.headers['SOAPAction'];
+
+    logger.finest('Req: ${req.method} - $action - ${req.url}');
 
     http.Response resp;
     try {
