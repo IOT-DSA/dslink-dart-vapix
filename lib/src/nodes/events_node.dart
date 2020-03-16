@@ -58,7 +58,6 @@ class EventsNode extends ChildNode implements Events {
       //* @Parent alarms
       //*
       //* Collection of rules that define when an action should be triggered.
-      RefreshActions.pathName: RefreshActions.definition(),
       rulesNd: {
         AddActionRule.pathName: AddActionRule.definition(),
         AddVirtualRule.pathName: AddVirtualRule.def()
@@ -71,7 +70,8 @@ class EventsNode extends ChildNode implements Events {
       actionsNd: {
         AddActionConfig.pathName: AddActionConfig.definition()
       }
-    }
+    },
+    RefreshEvents.pathName: RefreshEvents.def()
   };
 
   final LinkProvider _link;
@@ -108,10 +108,13 @@ class EventsNode extends ChildNode implements Events {
       _addActionConfigs(actionConfigs);
     }
 
-    var nd = provider.getNode('$path/$_alarms/${RefreshActions.pathName}');
+    // (node has been moved, remove old one if it exist)
+    var nd = provider.getNode('$path/$_alarms/${RefreshEvents.pathName}') as RefreshEvents;
+    if (nd != null) nd.remove();
+    // And put in the correct location.
+    nd = provider.getNode('$path/${RefreshEvents.pathName}') as RefreshEvents;
     if (nd == null) {
-      provider.addNode('$path/$_alarms/${RefreshActions.pathName}',
-          RefreshActions.definition());
+      provider.addNode('$path/${RefreshEvents.pathName}', RefreshEvents.def());
     }
 
     nd = provider.getNode('$path/$_alarms/$rulesNd/${AddVirtualRule.pathName}');
@@ -154,14 +157,19 @@ class EventsNode extends ChildNode implements Events {
   void _addInstances(MotionEvents events) {
     if (events == null) return;
 
-    var instNd = provider.getNode('$path/$instances/$sources');
+    var instNd = provider.getOrCreateNode('$path/$instances');
     if (instNd == null) {
       throw new StateError('Unable to locate instances node');
     }
 
-    var chd = instNd.children.values.toList();
+    var sourcesNd = provider.getOrCreateNode('${instNd.path}/$sources');
+    if (sourcesNd == null) {
+      throw new StateError('Unable to locate instance sources node');
+    }
+
+    var chd = sourcesNd.children.values.toList();
     for (var c in chd) {
-      if (c is EventSourceNode) c.remove();
+      if (c is EventSourceNode) RemoveNode(provider, c);
     }
 
     for(var src in events.sources) {
@@ -171,16 +179,21 @@ class EventsNode extends ChildNode implements Events {
   }
 
   void _addActionRules(List<ActionRule> rules) {
-    if (rules == null || rules.isEmpty) return;
+    if (rules == null) return;
 
-    var arNd = provider.getNode('$path/$_alarms/$rulesNd');
+    var alarmNode = provider.getOrCreateNode('$path/$_alarms');
+    if (alarmNode == null) {
+      throw new StateError('Unable to locate alarm node');
+    }
+
+    var arNd = provider.getOrCreateNode('${alarmNode.path}/$rulesNd');
     if (arNd == null) {
       throw new StateError('Unable to locate rules node');
     }
 
     var chd = arNd.children.values.toList();
     for (var c in chd) {
-      if (c is ActionRuleNode) c.remove();
+      if (c is ActionRuleNode) RemoveNode(provider, c);
     }
 
     for(var rule in rules) {
@@ -192,6 +205,11 @@ class EventsNode extends ChildNode implements Events {
   void _addActionConfigs(List<ActionConfig> configs) {
     if (configs == null) return;
 
+    var alarmNode = provider.getOrCreateNode('$path/$_alarms');
+    if (alarmNode == null) {
+      throw new StateError('Unable to locate alarm node');
+    }
+
     var acNd = provider.getNode('$path/$_alarms/$actionsNd');
     if (acNd == null) {
       throw new StateError('Unable to locate config node');
@@ -199,7 +217,7 @@ class EventsNode extends ChildNode implements Events {
 
     var chd = acNd.children.values.toList();
     for (var c in chd) {
-      if (c is ActionConfigNode) c.remove();
+      if (c is ActionConfigNode) RemoveNode(provider, c);
     }
 
     for(var config in configs) {
@@ -547,7 +565,12 @@ class AddActionRule extends ChildNode {
 
     var window = (params[_window] as num)?.toInt();
     var cl = await getClient();
+
     var me = cl.getMotion();
+    if (me == null || me.sources == null) {
+      throw new StateError('Unable to find any motion windows');
+    }
+
     var win = me.sources.firstWhere((event) => event.value == '$window',
         orElse: () => null);
     if (win == null) {
@@ -727,7 +750,7 @@ class RemoveActionRule extends ChildNode {
     ret[_success] = await cl.removeActionRule(id);
     if (ret[_success]) {
       ret[_message] = 'Success!';
-      parent.remove();
+      RemoveNode(provider, parent);
       _link.save();
     } else {
       ret[_message] = 'Unable to remove Action Rule ID: $id';
@@ -844,7 +867,7 @@ class RemoveActionConfig extends ChildNode {
 
     if (ret[_success]) {
       ret[_message] = 'Success!';
-      parent.remove();
+      RemoveNode(provider, parent);
       _link.save();
     } else {
       ret[_message] = 'Unable to remove Action Config ID: $id';
@@ -854,7 +877,7 @@ class RemoveActionConfig extends ChildNode {
   }
 }
 
-class RefreshActions extends ChildNode {
+class RefreshEvents extends ChildNode {
   static const String isType = 'refreshActions';
   static const String pathName = 'Refresh';
 
@@ -864,7 +887,7 @@ class RefreshActions extends ChildNode {
   static const String _success = 'success';
   static const String _message = 'message';
 
-  static Map<String, dynamic> definition() => {
+  static Map<String, dynamic> def() => {
     r'$is': isType,
     r'$name': 'Refresh',
     r'$invokable': 'write',
@@ -877,62 +900,17 @@ class RefreshActions extends ChildNode {
 
   final LinkProvider _link;
 
-  RefreshActions(String path, this._link) : super(path);
+  RefreshEvents(String path, this._link) : super(path);
 
   @override
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = {_success: true, _message: 'Success!'};
 
-    var evNd = provider.getNode(parent.parent.path);
-    if (evNd == null || evNd is! EventsNode) {
-      throw new StateError("unable to find event parent.");
-    }
+    var evNd = parent as EventsNode;
+    await evNd.updateEvents();
 
-    var cl = await getClient();
-    var futs = new List<Future<Null>>();
-    futs.add(cl.getActionConfigs()
-        .then((List<ActionConfig> cfgs) => (evNd as EventsNode).actionConfigs = cfgs)
-        .then(_getConfigs));
-    futs.add(cl.getActionRules()
-        .then((List<ActionRule> ar) => (evNd as EventsNode).actionRules = ar)
-        .then(_getRules));
-
-    await Future.wait(futs);
     _link.save();
     return ret;
   }
 
-  void _getConfigs(List<ActionConfig> configs) {
-    if (configs == null) return;
-
-    var nd = provider.getNode('${parent.path}/$_actions');
-    var list = nd?.children?.values?.toList();
-    if (list != null) {
-      for (var c in list) {
-        if (c is ActionConfigNode) c.remove();
-      }
-    }
-
-    for(var config in configs) {
-      provider.addNode('${parent.path}/$_actions/${config.id}',
-          ActionConfigNode.definition(config));
-    }
-  }
-
-  void _getRules(List<ActionRule> rules) {
-    if (rules == null) return;
-
-    var nd = provider.getNode('${parent.path}/$_rules');
-    var list = nd?.children?.values?.toList();
-    if (list != null) {
-      for (var c in list) {
-        if (c is ActionRuleNode) c.remove();
-      }
-    }
-
-    for(var rule in rules) {
-      provider.addNode('${parent.path}/$_rules/${rule.id}',
-          ActionRuleNode.definition(rule));
-    }
-  }
 }

@@ -169,8 +169,9 @@ class DeviceNode extends SimpleNode implements Device {
         RemoveDevice.pathName: RemoveDevice.definition(),
         RefreshDevice.pathName: RefreshDevice.def(),
         ReconnectDevice.pathName: ReconnectDevice.def(),
-        ResetDevice.pathName: ResetDevice.def(),
-        VirtualPortTrigger.pathName: VirtualPortTrigger.def()
+        VirtualPortTrigger.pathName: VirtualPortTrigger.def(),
+        CheckConnection.pathName: CheckConnection.def(),
+        ResetDevice.pathName: ResetDevice.def()
       };
 
   static const String _user = r'$$ax_user';
@@ -242,6 +243,7 @@ class DeviceNode extends SimpleNode implements Device {
     _cl = new VClient(uri, u, p, s);
     _cl.onDisconnect = _onDisconnect;
 
+    // Skip initialization if we already have the configuration
     if (dev != null) {
       setDevice(new AxisDevice.fromJson(dev));
       _cl.device = _device;
@@ -249,10 +251,10 @@ class DeviceNode extends SimpleNode implements Device {
       _populatePTZNodes(_device.ptzCommands);
       _populateLeds(_device.leds);
       _populateNodes(_device, toSave: false);
-      // TODO: Populate nodes from here
       return;
     }
 
+    // Initialize from the device directly.
     _cl.authenticate().then((AuthError ae) async {
       if (ae != AuthError.ok) return null;
 
@@ -272,10 +274,7 @@ class DeviceNode extends SimpleNode implements Device {
             .then((List<PTZCameraCommands> cmds) => this._device.ptzCommands = cmds)
             .then(_populatePTZNodes));
       }
-      futs.add(_cl.hasLedControls()
-          .then((bool hasControls) {
-            if (hasControls) return _cl.getLeds();
-          })
+      futs.add(_cl.getLeds()
           .then((List<Led> leds) => this._device.leds = leds)
           .then(_populateLeds));
 
@@ -304,14 +303,14 @@ class DeviceNode extends SimpleNode implements Device {
   }
 
   void _populateLeds(List<Led> leds) {
-    if (leds == null || leds.isEmpty) return;
     var ledNodes = provider.getOrCreateNode('$path/$_Leds') as SimpleNode;
     ledNodes.serializable = false;
 
+    if (leds == null || leds.isEmpty) return;
     for (var l in leds) {
       var nm = NodeNamer.createName(l.name);
       var lNode = provider.getNode('${ledNodes.path}/$nm') as SimpleNode;
-      if (lNode != null) lNode.remove();
+      if (lNode != null) RemoveNode(provider, lNode);
 
       lNode = provider.getOrCreateNode('${ledNodes.path}/$nm');
       provider.addNode('${lNode.path}/${SetLed.pathName}', SetLed.def(l));
@@ -329,6 +328,8 @@ class DeviceNode extends SimpleNode implements Device {
           RefreshResolution.def());
     }
 
+    if (resolutions == null) return;
+
     for (var res in resolutions) {
       provider.addNode(
           '${resNode.path}/${res.camera}', ResolutionNode.def(res));
@@ -337,6 +338,8 @@ class DeviceNode extends SimpleNode implements Device {
 
   void _populatePTZNodes(List<PTZCameraCommands> commandsList) {
     var ptzNode = provider.getOrCreateNode('$path/ptz');
+
+    if (commandsList == null) return;
 
     for (PTZCameraCommands commands in commandsList) {
       var cameraNode = provider.getNode('${ptzNode.path}/${commands.camera}') as SimpleNode;
@@ -373,9 +376,10 @@ class DeviceNode extends SimpleNode implements Device {
     if (p == null) {
       throw new StateError('Unable to locate parameters node');
     }
+
     var chd = p.children.values.toList();
     for (var c in chd) {
-      if (c is SimpleNode) c.remove();
+      RemoveNode(provider, c);
     }
 
     genNodes(dev.params.map, p.path);
@@ -452,13 +456,33 @@ class DeviceNode extends SimpleNode implements Device {
     return res;
   }
 
+  void _loadDevice() {
+    if (_device != null) return;
+    var dev = getConfig(_dev);
+    if (dev != null) {
+      setDevice(new AxisDevice.fromJson(dev));
+      _cl.device = _device;
+    }
+  }
+
   void _onDisconnect(bool disconnected) {
     provider.updateValue('$path/$_disconnected', disconnected);
     if (!disconnected) {
+      // Set children as active again.
       children.values.where((nd) => nd is ChildNode).forEach((ChildNode nd) {
         nd.disconnected = null;
+        if (nd is EventsNode) {
+          // Reinitialize events node to make sure it's not missing nodes.
+          nd.onCreated();
+        }
       });
+
+      _loadDevice();
+      if (_device != null) {
+        _populateNodes(_device, toSave: false);
+      }
     } else {
+      // Set as disconnected and disable the nodes.
       children.values
           .where((nd) => nd is ChildNode && nd.disconnected == null)
           .forEach((nd) {
@@ -600,7 +624,7 @@ class RemoveDevice extends SimpleNode {
     final ret = {_success: true, _message: 'Success!'};
 
     (parent as DeviceNode)._cl?.clearConn();
-    parent.remove();
+    RemoveNode(provider, parent);
     _link.save();
 
     return ret;
@@ -713,7 +737,7 @@ class RefreshDevice extends SimpleNode {
 //* This will perform a quick test of the connection to the camera, no more than
 //* approximately 5 seconds. To verify that the device is online. This action
 //* will throw an error if it is unable to connect to the camera.
-class CheckConnection extends ChildNode {
+class CheckConnection extends SimpleNode {
   static const String isType = 'checkConnection';
   static const String pathName = 'Check_Connection';
 
@@ -733,7 +757,7 @@ class CheckConnection extends ChildNode {
 
   @override
   Future<Map<String, bool>> onInvoke(Map<String, dynamic> params) async {
-    var client = await getClient();
+    var client = await(parent as DeviceNode).client;
     bool ok = false;
     try {
       ok = await client.checkConnection();
@@ -755,7 +779,7 @@ class CheckConnection extends ChildNode {
 //* trying to remove any Action Rules, Action Configurations, Motion Windows,
 //* and Virtual Ports. This action will throw on any failure, but continue to
 //* try removing all aspects independent of any prior failures.
-class ResetDevice extends ChildNode {
+class ResetDevice extends SimpleNode {
   static const String isType = 'resetCamera';
   static const String pathName = 'Reset_Camera';
 
@@ -777,7 +801,7 @@ class ResetDevice extends ChildNode {
 
   @override
   Future<Map> onInvoke(Map<String, dynamic> params) async {
-    var cl = await getClient();
+    var cl = await (parent as DeviceNode).client;
 
     if (cl == null) {
       throw new StateError('Unable to reset camera. Failed to retrieve client');
@@ -812,8 +836,9 @@ class ResetDevice extends ChildNode {
 
     List<Future> futs = <Future>[];
     for (ActionRuleNode node in rules) {
-      futs.add(client.removeActionRule(node.value)
-          .then((bool ok) { if (ok) node.remove(); })
+      futs.add(
+          client.removeActionRule(node.value)
+            .then((bool ok) { if (ok) RemoveNode(provider, node); })
       );
     }
     try {
@@ -841,7 +866,7 @@ class ResetDevice extends ChildNode {
     List<Future> futs = <Future>[];
     for (ActionConfigNode node in actions) {
       futs.add(client.removeActionConfig(node.value)
-          .then((bool ok) { if (ok) node.remove(); })
+          .then((bool ok) { if (ok) RemoveNode(provider, node); })
       );
     }
 
@@ -870,7 +895,7 @@ class ResetDevice extends ChildNode {
     try {
       await client.removeMotions(windows.map((SimpleNode nd) => nd.name));
       for (SimpleNode win in windows) {
-        win.remove();
+        RemoveNode(provider, win);
       }
     } catch (e) {
       logger.warning('Reset Device - error removing motion windows', e);

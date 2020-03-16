@@ -135,7 +135,7 @@ class RemoveStream extends ChildNode {
     var ok = await cl.removeStreamProfile(nm);
 
     if (ok) {
-      parent.remove();
+      RemoveNode(provider, parent);
       link.save();
     }
 

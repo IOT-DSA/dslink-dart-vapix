@@ -154,7 +154,7 @@ class RemoveWindow extends ChildNode {
     ret[_message] = ret[_success] ? 'Success!': 'Error removing window group';
 
     if (ret[_success]) {
-      parent.remove();
+      RemoveNode(provider, parent);
     }
 
     return ret;

@@ -38,7 +38,7 @@ main(List<String> args) async {
     AddActionConfig.isType: (String path) => new AddActionConfig(path, link),
     ActionConfigNode.isType: (String path) => new ActionConfigNode(path),
     ReconnectDevice.isType: (String path) => new ReconnectDevice(path),
-    RefreshActions.isType: (String path) => new RefreshActions(path, link),
+    RefreshEvents.isType: (String path) => new RefreshEvents(path, link),
     RefreshDevice.isType: (String path) => new RefreshDevice(path),
     CheckConnection.isType: (String path) => new CheckConnection(path),
     RemoveActionConfig.isType: (String path) =>
