@@ -178,6 +178,8 @@ class VClient {
       clearConn();
       _authStatus.complete(AuthError.auth);
       return _authStatus.future;
+    } else if (resp.status == HttpStatus.FOUND && _rootUri.scheme.toLowerCase() == 'http') {
+      throw new RemoteException(resp.status, '302', 'Device expects HTTPS connections');
     }
 
     body = resp.body;
@@ -882,6 +884,34 @@ class VClient {
       return null;
     }
 
+    // Check for error messages.
+    if (resp.status != HttpStatus.OK) {
+      if (resp.status == HttpStatus.FOUND && _rootUri.scheme.toLowerCase() == 'http') {
+        logger.finest('Status code: 302 - ${resp.body}');
+        throw new RemoteException(resp.status, '302', 'Device expects HTTPS connections');
+      }
+
+      var faults = doc.findAllElements('SOAP-ENV:Fault');
+      if (faults != null && faults.isNotEmpty) {
+        String code, reason;
+        var fault = faults.first;
+        var codeTag = fault.findAllElements('SOAP-ENV:Value');
+        if (codeTag != null && codeTag.isNotEmpty) {
+          code = codeTag.first.text;
+        }
+
+        var reasonTag = fault.findAllElements('SOAP-ENV:Text');
+        if (reasonTag != null && reasonTag.isNotEmpty) {
+          reason = reasonTag.first.text;
+        }
+
+        var e = new RemoteException(resp.status, code, reason);
+        logger.warning('${_rootUri.host} -- $code -- Remote Fault: ', e);
+
+        throw e;
+      }
+    }
+
     return doc;
   }
 
@@ -1067,4 +1097,14 @@ class ClientResp {
   final String body;
   final int status;
   ClientResp(this.status, this.body);
+}
+
+class RemoteException implements Exception {
+  final int httpStatus;
+  final String code;
+  final String reason;
+
+  RemoteException(this.httpStatus, this.code, this.reason);
+
+  String toString() => reason;
 }

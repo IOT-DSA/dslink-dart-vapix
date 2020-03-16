@@ -179,7 +179,7 @@ class EventsNode extends ChildNode implements Events {
   }
 
   void _addActionRules(List<ActionRule> rules) {
-    if (rules == null || rules.isEmpty) return;
+    if (rules == null) return;
 
     var alarmNode = provider.getOrCreateNode('$path/$_alarms');
     if (alarmNode == null) {
@@ -565,7 +565,12 @@ class AddActionRule extends ChildNode {
 
     var window = (params[_window] as num)?.toInt();
     var cl = await getClient();
+
     var me = cl.getMotion();
+    if (me == null || me.sources == null) {
+      throw new StateError('Unable to find any motion windows');
+    }
+
     var win = me.sources.firstWhere((event) => event.value == '$window',
         orElse: () => null);
     if (win == null) {

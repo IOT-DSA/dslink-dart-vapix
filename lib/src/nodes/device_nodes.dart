@@ -243,6 +243,7 @@ class DeviceNode extends SimpleNode implements Device {
     _cl = new VClient(uri, u, p, s);
     _cl.onDisconnect = _onDisconnect;
 
+    // Skip initialization if we already have the configuration
     if (dev != null) {
       setDevice(new AxisDevice.fromJson(dev));
       _cl.device = _device;
@@ -250,10 +251,10 @@ class DeviceNode extends SimpleNode implements Device {
       _populatePTZNodes(_device.ptzCommands);
       _populateLeds(_device.leds);
       _populateNodes(_device, toSave: false);
-      // TODO: Populate nodes from here
       return;
     }
 
+    // Initialize from the device directly.
     _cl.authenticate().then((AuthError ae) async {
       if (ae != AuthError.ok) return null;
 
