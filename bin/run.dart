@@ -4,7 +4,6 @@ import 'dart:io';
 import "package:dslink/dslink.dart";
 import 'package:dslink/utils.dart' show logger;
 
-
 import "package:dslink_vapix/vapix.dart";
 import "package:dslink_vapix/src/client.dart" show context;
 
@@ -53,6 +52,7 @@ main(List<String> args) async {
   });
 
   link.init();
+  addDataTree(link);
   await link.connect();
 }
 
