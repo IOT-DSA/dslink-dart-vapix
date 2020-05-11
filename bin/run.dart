@@ -51,8 +51,9 @@ main(List<String> args) async {
     AddDevice.pathName: AddDevice.definition()
   });
 
+  addDataTreeProfiles(link);
   link.init();
-  addDataTree(link);
+  addDataTreeNodes(link);
   await link.connect();
 }
 

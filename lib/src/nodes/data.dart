@@ -10,7 +10,7 @@ const _linkName = "axis";
 /// Helper method to inject the Data tree nodes into the DSLink via the
 /// LinkProvider. Sets defaultNode, profiles and adds data node if link
 /// has been run in the past.
-void addDataTree(LinkProvider link) {
+void addDataTreeProfiles(LinkProvider link) {
 // Profiles
   var prof = {
     DataRootNode.isType: (String path) => new DataRootNode(path),
@@ -25,7 +25,9 @@ void addDataTree(LinkProvider link) {
   });
 
   link.defaultNodes[DataRootNode.pathName] = DataRootNode.def();
+}
 
+void addDataTreeNodes(LinkProvider link) {
   var provider = link.provider;
   var dataNd = provider.getNode('/${DataRootNode.pathName}');
   if (dataNd == null) {
