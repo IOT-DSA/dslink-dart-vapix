@@ -1,6 +1,6 @@
 name: dslink_vapix
 description: Axis DSLink
-version: "1.4.4"
+version: "1.4.6"
 environment:
     sdk: ">=1.13.0 <2.0.0"
 dependencies:
