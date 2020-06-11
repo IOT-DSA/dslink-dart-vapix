@@ -1,12 +1,19 @@
 {
   "name" : "dslink-dart-vapix",
-  "version" : "1.4.4",
+  "version" : "1.4.6",
   "description" : "Axis DSLink",
   "main" : "bin/run.dart",
   "engines" : {
     "dart" : ">1.13.0"
   },
   "getDependencies" : [],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/IOT-DSA/dslink-dart-vapix"
+  },
+  "bugs": {
+    "url": "https://github.com/IOT-DSA/dslink-dart-vapix/issues"
+  },
   "configs" : {
     "broker" : {
       "type" : "url"

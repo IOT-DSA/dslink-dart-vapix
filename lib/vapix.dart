@@ -8,3 +8,4 @@ export 'src/nodes/ptz_command_node.dart';
 export 'src/nodes/stream_profiles.dart';
 export 'src/nodes/virtual_ports.dart';
 export 'src/nodes/window_commands.dart';
+export 'src/nodes/data.dart';
