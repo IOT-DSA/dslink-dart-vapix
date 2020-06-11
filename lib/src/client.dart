@@ -662,13 +662,16 @@ class VClient {
     return el.text;
   }
 
+  /// Returns a List of [ActionConfig]s. If there is an error in the query,
+  /// it will return null. A valid response with no data returns an empty list.
   Future<List<ActionConfig>> getActionConfigs() async {
     var doc = await _soapRequest(soap.getActionConfigs(), soap.headerGAC);
 
     if (doc == null) return null;
     var configs = doc.findAllElements('aa:ActionConfiguration');
+    if (configs == null) return null;
     var res = new List<ActionConfig>();
-    if (configs == null || configs.isEmpty) return res;
+    if (configs.isEmpty) return res;
 
     for (var c in configs) {
 
@@ -739,13 +742,16 @@ class VClient {
     return ret;
   }
 
+  /// Returns a List of [ActionRule]s. If there is an error in the query,
+  /// it will return null. A valid response with no data returns an empty list.
   Future<List<ActionRule>> getActionRules() async {
     var doc = await _soapRequest(soap.getActionRules(), soap.headerGAR);
 
     if (doc == null) return null;
     var rules = doc.findAllElements('aa:ActionRule');
+    if (rules == null) return null;
     var res = new List<ActionRule>();
-    if (rules == null || rules.isEmpty) return res;
+    if (rules.isEmpty) return res;
 
     String id, nm, pa;
     bool en;

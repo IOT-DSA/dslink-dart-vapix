@@ -131,15 +131,29 @@ class EventsNode extends ChildNode implements Events {
 
     await Future.wait([
         cl.getEventInstances()
-            .then((MotionEvents evts) => this.events = evts)
-            .then(_addInstances),
+            .then((MotionEvents evts) {
+              if (evts == null) return evts;
+              events = evts;
+              configs[_motionEvt] = evts.toJson();
+              return evts;
+            }).then(_addInstances),
         cl.getActionRules()
-            .then((List<ActionRule> rules) => this.actionRules = rules)
-            .then(_addActionRules),
+            .then((List<ActionRule> rules) {
+              if (rules == null) return rules;
+              actionRules = rules;
+              configs[_actRule] = rules.map((ActionRule ar) => ar.toJson()).toList();
+              return rules;
+            }).then(_addActionRules),
         cl.getActionConfigs()
-            .then((List<ActionConfig> cfgs) => this.actionConfigs = cfgs)
-            .then(_addActionConfigs)
+            .then((List<ActionConfig> cfgs) {
+              if (cfgs == null) return cfgs;
+              actionConfigs = cfgs;
+              configs[_actConf] = cfgs.map((ActionConfig ac) => ac.toJson()).toList();
+              return cfgs;
+            }).then(_addActionConfigs)
+
     ]);
+    updateList(r'$is');
 
     _link.save();
   }
@@ -152,6 +166,23 @@ class EventsNode extends ChildNode implements Events {
       m[_actConf] = actionConfigs?.map((ActionConfig ac) => ac.toJson())?.toList();
     }
     return m;
+  }
+
+  void _addActionRule(ActionRule ar) {
+    if (this.actionRules == null) {
+      this.actionRules = new List<ActionRule>();
+    }
+
+    this.actionRules.add(ar);
+    configs[_actRule] = actionRules.map((ActionRule ar) => ar.toJson()).toList();
+  }
+
+  void _addActionConfig(ActionConfig ac) {
+    if (actionConfigs == null) {
+      actionConfigs = new List<ActionConfig>();
+    }
+    actionConfigs.add(ac);
+    configs[_actConf] = actionConfigs.map((ActionConfig ac) => ac.toJson()).toList();
   }
 
   void _addInstances(MotionEvents events) {
@@ -415,6 +446,10 @@ class AddActionConfig extends ChildNode {
 
     cfg.id = res;
     provider.addNode('${parent.path}/$res', ActionConfigNode.definition(cfg));
+    var evntNd = provider.getNode(parent.parent.path) as EventsNode; // Events node
+    if (evntNd != null) {
+      evntNd._addActionConfig(cfg);
+    }
     _link.save();
 
     return ret;
@@ -599,6 +634,11 @@ class AddActionRule extends ChildNode {
 
     rule.id = res;
     provider.addNode('${parent.path}/$res', ActionRuleNode.definition(rule));
+    var evntNd = provider.getNode(parent.parent.path) as EventsNode; // Events node
+    if (evntNd != null) {
+      evntNd._addActionRule(rule);
+    }
+
     _link.save();
 
     return ret;
@@ -909,7 +949,6 @@ class RefreshEvents extends ChildNode {
     var evNd = parent as EventsNode;
     await evNd.updateEvents();
 
-    _link.save();
     return ret;
   }
 
