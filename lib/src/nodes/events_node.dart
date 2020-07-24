@@ -395,19 +395,19 @@ class AddActionConfig extends ChildNode {
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = { _success: false, _message: '' };
 
-    var name = params[_name] as String;
+    var name = (params[_name] as String)?.trim();
     if (name == null || name.isEmpty) {
       return ret..[_message] = 'Name cannot be empty';
     }
 
-    var msg = params[_message] as String;
+    var msg = (params[_message] as String)?.trim();
     if (msg == null || msg.isEmpty) {
       return ret..[_message] = 'Message cannot be empty';
     }
 
     var cont = params[_continuous] as bool;
     var tok = cont ? ActionConfig.continuous : ActionConfig.fixed;
-    var ipStr = params[_ipAddr] as String;
+    var ipStr = (params[_ipAddr] as String)?.trim();
     if (ipStr == null || ipStr.isEmpty) {
       return ret..[_message] = 'Ip Address cannot be empty';
     }
@@ -488,7 +488,7 @@ class AddVirtualRule extends ChildNode {
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = { _success: true };
 
-    var name = params[_name] as String;
+    var name = (params[_name] as String)?.trim();
     if (name == null || name.isEmpty) {
       throw new ArgumentError('"$_name" cannot be empty.');
     }
@@ -591,7 +591,7 @@ class AddActionRule extends ChildNode {
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = { _success: false, _message: '' };
 
-    var name = params[_name] as String;
+    var name = (params[_name] as String)?.trim();
     if (name == null || name.isEmpty) {
       return ret..[_message] = 'Rule name cannot be empty';
     }
@@ -921,9 +921,6 @@ class RefreshEvents extends ChildNode {
   static const String isType = 'refreshActions';
   static const String pathName = 'Refresh';
 
-  static const String _alarms = 'alarms';
-  static const String _rules = 'rules';
-  static const String _actions = 'actions';
   static const String _success = 'success';
   static const String _message = 'message';
 

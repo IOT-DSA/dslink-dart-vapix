@@ -77,10 +77,12 @@ class AddDevice extends SimpleNode {
   Future<Map<String, dynamic>> onInvoke(Map<String, dynamic> params) async {
     final ret = {_success: false, _message: ''};
 
-    if (params[_name] == null || params[_name].isEmpty) {
+
+    String name = (params[_name] as String)?.trim();
+    if (name == null || name.isEmpty) {
       return ret..[_message] = 'A name must be specified.';
     }
-    var name = NodeNamer.createName(params[_name].trim());
+    name = NodeNamer.createName(name);
 
     var nd = provider.getNode('/$name');
     if (nd != null) {
@@ -89,13 +91,13 @@ class AddDevice extends SimpleNode {
 
     Uri uri;
     try {
-      uri = Uri.parse(params[_addr]);
+      uri = Uri.parse(params[_addr]?.trim());
     } catch (e) {
       return ret..[_message] = 'Error parsing Address: $e';
     }
 
-    var u = params[_user];
-    var p = params[_pass];
+    var u = (params[_user] as String)?.trim();
+    var p = (params[_pass] as String)?.trim();
     var s = params[_sec] as bool;
     var cl = new VClient(uri, u, p, s);
     var res = await cl.authenticate();
@@ -546,14 +548,14 @@ class EditDevice extends SimpleNode {
 
     Uri uri;
     try {
-      uri = Uri.parse(params[_addr]);
+      uri = Uri.parse((params[_addr] as String)?.trim());
     } catch (e) {
       return ret..[_message] = 'Error parsing Address: $e';
     }
 
-    var u = params[_user];
-    var p = params[_pass];
-    var s = params[_sec];
+    var u = (params[_user] as String)?.trim();
+    var p = (params[_pass] as String)?.trim();
+    var s = params[_sec] as bool;
     var res = await (parent as DeviceNode).updateConfig(uri, u, p, s);
 
     switch (res) {

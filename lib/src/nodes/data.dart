@@ -110,8 +110,8 @@ class DataAddNode extends SimpleNode {
   }
 
   @override
-  void onInvoke(Map<String,dynamic> params) {
-    var name = params[_name];
+  void onInvoke(Map<String, String> params) {
+    var name = params[_name]?.trim();
     var encName = NodeNamer.createName(name);
 
     var p = '${parent.path}/$encName';
@@ -154,7 +154,7 @@ class DataAddValue extends SimpleNode {
 
   @override
   void onInvoke(Map<String, dynamic> params) {
-    var name = params[_name] as String;
+    var name = (params[_name] as String)?.trim();
     var encName = NodeNamer.createName(name);
 
     var p = '${parent.path}/$encName';
@@ -190,7 +190,7 @@ class DataAddValue extends SimpleNode {
   }
 
   String _asString(Object value) {
-    if (value is String) return value;
+    if (value is String) return value.trim();
     return value.toString();
   }
 
@@ -244,7 +244,7 @@ class DataPublish extends SimpleNode {
 
   @override
   void onInvoke(Map<String, dynamic> params) {
-    var pPath = params[_path] as String;
+    var pPath = (params[_path] as String)?.trim();
     var force = (params[_force] as bool) ?? false;
     var ty = params[_type] as String;
     var value = params[_value];
@@ -311,7 +311,7 @@ class DataPublish extends SimpleNode {
   }
 
   String _asString(Object value) {
-    if (value is String) return value;
+    if (value is String) return value?.trim();
     return value.toString();
   }
 
