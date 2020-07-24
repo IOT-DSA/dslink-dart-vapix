@@ -145,9 +145,8 @@ class RemoveStream extends ChildNode {
 
 String notNullString(String value, String name) {
   final up = new ArgumentError.value(value, name, "should not be null or empty.");
-  if (value == null) throw up;
-  var clean = value.trim();
-  if (clean.isEmpty) throw up;
+  value = value?.trim();
+  if (value == null || value.isEmpty) throw up;
 
-  return clean;
+  return value;
 }

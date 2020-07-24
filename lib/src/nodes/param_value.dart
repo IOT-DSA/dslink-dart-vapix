@@ -44,6 +44,7 @@ class ParamValue extends ChildNode {
 
     var oldVal = value;
     getClient().then((cl) {
+      newVal = (newVal as String)?.trim();
       return cl.updateParameter(p, newVal);
     }).then((success) {
       if (success) return;
